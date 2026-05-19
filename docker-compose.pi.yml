@@ -1,0 +1,194 @@
+services:
+
+  docker-experiment:
+    image: aei-v2g:pi
+    profiles: ["experiment"]
+    build:
+      context: .
+      platforms:
+        - linux/arm64
+        - linux/arm/v7
+    command: >
+      python -m eval.run_journal_study
+        --config config/corridor_config.yaml
+        --duration ${AEI_DURATION_SECONDS:-86400}
+        --output-dir reports/docker_experiment
+    volumes:
+      - ./reports:/app/reports
+      - ./data:/app/data:ro
+    environment:
+      AEI_NODE_ROLE: standalone
+      AEI_NODE_ID: docker-experiment
+      AEI_ETH_RPC_URL: ${AEI_ETH_RPC_URL:-https://purechainnode.com:8547}
+      AEI_ETH_ACCOUNT: ${AEI_ETH_ACCOUNT:-}
+      AEI_ETH_PRIVATE_KEY: ${AEI_ETH_PRIVATE_KEY:-}
+      AEI_CREDIT_LEDGER_ADDRESS: ${AEI_CREDIT_LEDGER_ADDRESS:-}
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "2.0"
+
+  # ── MQTT broker (pi1 only) ─────────────────────────────────────────────────
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    profiles: ["pi1", "local"]
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./deploy/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: "0.25"
+
+  # ── pi1: LAVA validator ────────────────────────────────────────────────────
+  pi1-lava-validator:
+    image: aei-v2g:pi
+    profiles: ["pi1", "local"]
+    build:
+      context: .
+      platforms:
+        - linux/arm64
+        - linux/arm/v7
+    command: >
+      python -m integration.coordinator
+        --config config/corridor_config.yaml
+        --duration ${AEI_DURATION_SECONDS:-600}
+        --output reports/pi1_metrics.json
+        --chain data/pi1_chain.jsonl
+    volumes:
+      - ./reports:/app/reports
+      - ./data:/app/data
+    environment:
+      AEI_NODE_ROLE: lava-validator
+      AEI_NODE_ID: pi1
+      AEI_MQTT_BROKER: ${AEI_MQTT_BROKER:-mqtt-broker}
+      AEI_ETH_RPC_URL: ${AEI_ETH_RPC_URL:-https://purechainnode.com:8547}
+      AEI_ETH_ACCOUNT: ${AEI_ETH_ACCOUNT:-}
+      AEI_ETH_PRIVATE_KEY: ${AEI_ETH_PRIVATE_KEY:-}
+      AEI_CREDIT_LEDGER_ADDRESS: ${AEI_CREDIT_LEDGER_ADDRESS:-}
+    depends_on:
+      - mqtt-broker
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "1.5"
+
+  # ── pi2: station validator A+B ─────────────────────────────────────────────
+  pi2-station-validator:
+    image: aei-v2g:pi
+    profiles: ["pi2", "local"]
+    command: >
+      python -m integration.coordinator
+        --config config/corridor_config.yaml
+        --duration ${AEI_DURATION_SECONDS:-600}
+        --output reports/pi2_metrics.json
+        --chain data/pi2_chain.jsonl
+    volumes:
+      - ./reports:/app/reports
+      - ./data:/app/data
+    environment:
+      AEI_NODE_ROLE: station-validator
+      AEI_NODE_ID: pi2
+      AEI_MQTT_BROKER: ${AEI_MQTT_BROKER:-mqtt-broker}
+      AEI_STATION_IDS: station_a,station_b
+      AEI_ETH_RPC_URL: ${AEI_ETH_RPC_URL:-https://purechainnode.com:8547}
+      AEI_ETH_ACCOUNT: ${AEI_ETH_ACCOUNT:-}
+      AEI_ETH_PRIVATE_KEY: ${AEI_ETH_PRIVATE_KEY:-}
+      AEI_CREDIT_LEDGER_ADDRESS: ${AEI_CREDIT_LEDGER_ADDRESS:-}
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+          cpus: "1.0"
+
+  # ── pi3: station validator C ───────────────────────────────────────────────
+  pi3-station-validator:
+    image: aei-v2g:pi
+    profiles: ["pi3", "local"]
+    command: >
+      python -m integration.coordinator
+        --config config/corridor_config.yaml
+        --duration ${AEI_DURATION_SECONDS:-600}
+        --output reports/pi3_metrics.json
+        --chain data/pi3_chain.jsonl
+    volumes:
+      - ./reports:/app/reports
+      - ./data:/app/data
+    environment:
+      AEI_NODE_ROLE: station-validator
+      AEI_NODE_ID: pi3
+      AEI_MQTT_BROKER: ${AEI_MQTT_BROKER:-mqtt-broker}
+      AEI_STATION_IDS: station_c
+      AEI_ETH_RPC_URL: ${AEI_ETH_RPC_URL:-https://purechainnode.com:8547}
+      AEI_ETH_ACCOUNT: ${AEI_ETH_ACCOUNT:-}
+      AEI_ETH_PRIVATE_KEY: ${AEI_ETH_PRIVATE_KEY:-}
+      AEI_CREDIT_LEDGER_ADDRESS: ${AEI_CREDIT_LEDGER_ADDRESS:-}
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+          cpus: "1.0"
+
+  # ── pi5: RSU observer ──────────────────────────────────────────────────────
+  pi5-rsu-observer:
+    image: aei-v2g:pi
+    profiles: ["pi5", "local"]
+    command: >
+      python -m integration.coordinator
+        --config config/corridor_config.yaml
+        --duration ${AEI_DURATION_SECONDS:-600}
+        --output reports/pi5_metrics.json
+        --chain data/pi5_chain.jsonl
+    volumes:
+      - ./reports:/app/reports
+      - ./data:/app/data
+    environment:
+      AEI_NODE_ROLE: rsu-observer
+      AEI_NODE_ID: pi5
+      AEI_MQTT_BROKER: ${AEI_MQTT_BROKER:-mqtt-broker}
+      AEI_ETH_RPC_URL: ${AEI_ETH_RPC_URL:-https://purechainnode.com:8547}
+      AEI_ETH_ACCOUNT: ${AEI_ETH_ACCOUNT:-}
+      AEI_ETH_PRIVATE_KEY: ${AEI_ETH_PRIVATE_KEY:-}
+      AEI_CREDIT_LEDGER_ADDRESS: ${AEI_CREDIT_LEDGER_ADDRESS:-}
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+          cpus: "1.0"
+
+  # ── pi6: grid observer ─────────────────────────────────────────────────────
+  pi6-grid-observer:
+    image: aei-v2g:pi
+    profiles: ["pi6", "local"]
+    command: >
+      python -m integration.coordinator
+        --config config/corridor_config.yaml
+        --duration ${AEI_DURATION_SECONDS:-600}
+        --output reports/pi6_metrics.json
+        --chain data/pi6_chain.jsonl
+    volumes:
+      - ./reports:/app/reports
+      - ./data:/app/data
+    environment:
+      AEI_NODE_ROLE: grid-observer
+      AEI_NODE_ID: pi6
+      AEI_MQTT_BROKER: ${AEI_MQTT_BROKER:-mqtt-broker}
+      AEI_ETH_RPC_URL: ${AEI_ETH_RPC_URL:-https://purechainnode.com:8547}
+      AEI_ETH_ACCOUNT: ${AEI_ETH_ACCOUNT:-}
+      AEI_ETH_PRIVATE_KEY: ${AEI_ETH_PRIVATE_KEY:-}
+      AEI_CREDIT_LEDGER_ADDRESS: ${AEI_CREDIT_LEDGER_ADDRESS:-}
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+          cpus: "1.0"

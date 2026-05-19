@@ -1,0 +1,41 @@
+mqtt_broker_host: 192.168.137.217   # pi1 hosts mosquitto
+
+nodes:
+  - id: pi1
+    role: lava-validator
+    host: 192.168.137.217
+    user: pi1
+    station_ids: ""
+    eth_account: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    eth_account_index: 0
+  - id: pi2
+    role: station-validator
+    host: 192.168.137.246
+    user: pi2
+    station_ids: "station_a,station_b"
+    eth_account: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+    eth_account_index: 1
+  - id: pi3
+    role: station-validator
+    host: 192.168.137.13
+    user: pi3
+    station_ids: "station_c"
+    eth_account: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+    eth_account_index: 2
+  - id: pi5
+    role: rsu-observer
+    host: 192.168.137.16
+    user: pi5
+    station_ids: ""
+    eth_account: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"
+    eth_account_index: 4
+  - id: pi6
+    role: grid-observer
+    host: 192.168.137.104
+    user: pi6
+    station_ids: ""
+    eth_account: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"
+    eth_account_index: 5
+
+# Account #3 (index 3) = log sink — receives all decision anchor transactions
+# 0x90F79bf6EB2c4f870365E785982E1f101E93b906

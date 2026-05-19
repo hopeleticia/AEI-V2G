@@ -1,0 +1,18 @@
+{
+  "name": "aei-v2g-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "deploy:credit-ledger:purechain": "hardhat run scripts/deploy_credit_ledger.js --network purechain"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "hardhat": "^2.22.17"
+  },
+  "dependencies": {
+    "lib": "^5.1.0",
+    "purechain": "^1.0.5"
+  }
+}

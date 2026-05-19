@@ -1,0 +1,9 @@
+PyYAML>=6.0.2
+pytest>=8.3.0
+matplotlib>=3.9.0
+paho-mqtt>=1.6.1
+web3>=6.0.0
+# DRL scheduler — PyTorch has ARM64 wheels for Raspberry Pi 4 (aarch64).
+# Install: pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Verify ARM availability before adding any other ML dependency.
+torch>=2.0.0

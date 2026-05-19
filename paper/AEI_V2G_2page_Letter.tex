@@ -1,0 +1,311 @@
+\documentclass[journal,twoside,twocolumn]{IEEEtran}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{pifont}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{multirow}
+
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\begin{document}
+\IEEEoverridecommandlockouts
+\setlength{\columnsep}{0.2in}
+
+\title{AEI-V2G: Pre-Arrival Vehicle-to-Grid Coordination\\
+via Edge Ensemble Decisions and Blockchain Audit\\
+on a Physical Raspberry Pi Cluster}
+
+\author{
+\IEEEauthorblockN{[Authors Removed for Review]}\\
+\IEEEauthorblockA{[Affiliation Removed for Review]}
+}
+
+\maketitle
+
+%─────────────────────────────────────────────────────────────
+\begin{abstract}
+Existing V2G systems discover EV state only at plug-in, leaving no time to
+redistribute load or recruit sellers before demand arrives.
+AEI-V2G shifts coordination to the pre-arrival phase: Roadside Units sense
+approaching vehicles and feed telemetry into the LAVA ensemble---a three-engine
+decision layer (Global Optimiser, Rule Reasoner, Constraint Enforcer) whose
+output is median-voted and SHA-256 anchored to a private blockchain. We deploy
+the full pipeline across five Raspberry Pi nodes over MQTT and Tailscale VPN and
+run it against a real CAISO evening-ramp profile for 1200 seconds. The run yields
+mean LAVA latency $\bar{t} = 0.397$\,ms, 7/7 routes delivered, a 36\,kW V2G
+dispatch held for five ticks under grid stress $\sigma > 0.8$, and 152 on-chain
+records matching block \texttt{0x98}---the first physical-cluster execution of a
+role-separated, blockchain-auditable, proactive V2G pipeline reported in the
+literature.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Vehicle-to-Grid, edge computing, LAVA ensemble, blockchain audit, proactive
+routing, Raspberry Pi, 6G ISAC, MQTT, distributed deployment
+\end{IEEEkeywords}
+
+%─────────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+%─────────────────────────────────────────────────────────────
+
+Grid operators have no lead time under today's V2G model: the system sees an EV
+only when it plugs in, at which point station capacity is fixed and recruitment of
+sellers must start from scratch~\cite{krueger2020v2g}. The V2G scheduling
+literature has addressed dispatch optimality and battery
+degradation~\cite{ginigeme2020distributed}, and blockchain-based approaches have
+tackled settlement trust~\cite{zhou2020v2g}, but both lines of work begin
+\emph{after} arrival and are evaluated only in simulation. Pre-arrival awareness
+via RSU infrastructure has been proposed conceptually under 6G
+ISAC~\cite{isac2023}, but no end-to-end implementation has been run on physical
+hardware.
+
+AEI-V2G closes that gap. Its claim is specific: a proactive V2G pipeline that
+acts on RSU telemetry before the EV reaches a station, runs on five
+resource-constrained Raspberry Pi nodes with strict role separation, and records
+every routing and dispatch decision on a private blockchain can be built from
+off-the-shelf components and executed without error. The contribution is not a
+new optimisation algorithm; it is the first working physical deployment of the
+complete pre-arrival pipeline---sensing, decision, dispatch, and audit---verified
+end-to-end on real hardware.
+
+%─────────────────────────────────────────────────────────────
+\section{AEI-V2G Architecture}
+\label{sec:arch}
+%─────────────────────────────────────────────────────────────
+
+The system has three layers. \textbf{Layer~1 (Awareness):} RSUs observe
+approaching vehicles and publish EV telemetry vectors
+$\mathbf{v}_e = \langle\text{id},\, x,\, v,\, \theta,\, \text{soc},\,
+\text{dest},\, f_c\rangle$ to MQTT topic \texttt{aei/rsu/sense}. In the
+full-deployment vision, sensing uses 6G ISAC~\cite{isac2023} to extract vehicle
+state passively from the radio channel without requiring any on-vehicle
+application.
+
+\textbf{Layer~2 (Decision -- LAVA):} The LAVA ensemble on the station cluster
+receives RSU telemetry and current grid stress $\sigma$ and outputs route
+assignments and V2G dispatch commands. Three engines score candidate stations
+independently:
+\begin{itemize}\setlength\itemsep{1pt}
+  \item \textit{Engine~1 (Global Optimiser):} $s^* = \argmin_{s}
+  [w_1\sigma_s + w_2\tau_s + w_3\rho_s + w_4 c_s]$,
+  weights $(0.32, 0.28, 0.22, 0.18)$.
+  \item \textit{Engine~2 (Rule Reasoner):} YAML expert rules, e.g.\
+  \texttt{IF grid\_stress $>$ 0.8 AND soc $\geq$ 55 THEN dispatch\_v2g}.
+  \item \textit{Engine~3 (Constraint Enforcer):} Hard limits on utilisation
+  ($\leq 0.98$), post-V2G SoC ($\geq 20\%$), and frequency deviation
+  ($\leq 0.25$\,Hz).
+\end{itemize}
+The final decision is $d^* = \mathrm{median}(d_1, d_2, d_3)$, which bounds
+the influence of any single engine without requiring majority agreement. A
+cooldown gate suppresses repeated dispatch commands during sustained high-stress
+periods to prevent oscillation.
+
+\textbf{Layer~3 (Audit):} Every decision record is SHA-256 hashed and submitted
+as calldata in a zero-value Ethereum transaction to a fixed sink account. This
+gives the audit trail three properties: integrity checking (a modified JSONL
+record will not match its on-chain hash), rule-level traceability (each record
+carries the engine tag that produced it), and V2G settlement non-repudiation.
+
+%─────────────────────────────────────────────────────────────
+\section{Physical Deployment}
+\label{sec:impl}
+%─────────────────────────────────────────────────────────────
+
+Five Raspberry Pi nodes each execute a single role (Table~\ref{tab:nodes}) and
+communicate over a Tailscale VPN with the MQTT broker running on pi1. Role
+separation is intentional: a single-machine run cannot expose the inter-node
+communication latencies, clock skew, or partial-failure modes that appear when
+distinct processes run on distinct constrained hardware.
+
+\begin{table}[!t]
+\caption{Physical Node Roles}
+\label{tab:nodes}
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}llp{3.4cm}@{}}
+\toprule
+\textbf{Node} & \textbf{Role} & \textbf{Responsibility} \\
+\midrule
+pi1 & LAVA validator   & LAVA engine; MQTT broker \\
+pi2 & Station val.\ A+B & station\_a, station\_b; V2G settlement \\
+pi3 & Station val.\ C   & station\_c \\
+pi5 & RSU observer      & EV feature sensing \\
+pi6 & Grid observer     & CAISO profile replay \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The corridor is 50\,km, $\lambda = 28$ EVs/h, with four RSUs at 4, 16, 31, and
+45\,km. Grid replay uses a real CAISO load profile starting at minute~1020, placing
+the run inside the evening demand ramp where V2G triggers are exercised. Before
+the final run, eight deployment failures were resolved that do not appear in
+simulation: DNS resolution on Pis lacking nameservers, clock skew across nodes
+requiring a cross-Pi time-sync helper, CRLF line endings in PowerShell SSH
+commands breaking Bash execution, Mosquitto binding to localhost instead of the
+VPN interface, a \texttt{pkill} command self-killing the SSH launch shell, and
+missing EV feature payloads in LAVA route messages preventing station-side
+admission.
+
+%─────────────────────────────────────────────────────────────
+\section{Experimental Results}
+\label{sec:exp}
+%─────────────────────────────────────────────────────────────
+
+The run covered 1200 seconds as 20 ticks of 60\,s each, with the Hardhat chain
+reset to block \texttt{0x0} before launch. Results were collected at
+\texttt{2026-05-05T20:57+09:00}; per-node outputs are in Table~\ref{tab:results}.
+
+\begin{table}[!t]
+\caption{Per-Node Results --- 1200-Second Hardware Run}
+\label{tab:results}
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Node} & \textbf{Metric} & \textbf{Value} \\
+\midrule
+pi1 & EVs routed / latency avg & 7 / 0.397\,ms \\
+pi2 & Routes rcvd / EVs arrived & 7 / 2 \\
+pi2 & V2G revenue & \$0.60 \\
+pi3 & Routes received & 0 (correct) \\
+pi5 & RSU sense events & 78 \\
+pi6 & Avg grid stress & 0.8246 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Mean LAVA decision latency was $\bar{t} = 0.397$\,ms ($\sigma = 0.081$\,ms)
+across 10 sampled ticks, well within the 200\,ms system target. Routing ticks
+averaged 0.359\,ms versus 0.209\,ms for idle ticks, confirming that MQTT and
+blockchain I/O dominate latency rather than LAVA computation.
+
+Grid stress crossed the V2G trigger threshold ($\sigma > 0.8$) at tick~10 and
+peaked at 0.8308 by tick~16 as the CAISO evening ramp progressed. V2G dispatch
+of 36\,kW activated at tick~15 and held through tick~19. Pi2 settlement invited
+10 EVs, accepted 5 after SoC screening, and supplied 1.0\,kWh for \$0.60
+revenue. The 50\% acceptance rate is the Constraint Enforcer working as
+specified: it rejected the five EVs whose post-V2G SoC would have fallen below
+the 20\% floor.
+
+Chain-log event counts verify end-to-end pipeline integrity:
+\texttt{pi1: \{lava\_route:7,\, v2g\_dispatch:20\}};
+\texttt{pi2: \{route\_applied:7,\, v2g\_applied:19\}}.
+All 7 routes were delivered with zero loss; two routed EVs arrived and entered
+active charging state. \texttt{evs\_served=0} reflects that no EV completed a
+full charge session within the 20-minute window, not a failure of the pipeline.
+The 78 RSU observations on pi5 versus 7 routed EVs reflects repeated per-tick
+sensing of the same vehicles in transit---LAVA deduplicates by EV identifier.
+
+\begin{table}[!t]
+\caption{Blockchain Records and Final Chain State}
+\label{tab:chain}
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lcl@{}}
+\toprule
+\textbf{Node} & \textbf{Records} & \textbf{Tail hash (prefix)} \\
+\midrule
+pi1 & 27 & \texttt{c788e6d0b85bab49} \\
+pi2 & 46 & \texttt{0adcfe72ce515ee8} \\
+pi3 & 39 & \texttt{fe124791825736bc} \\
+pi5 & 20 & \texttt{a1fa6a002b79b4ea} \\
+pi6 & 20 & \texttt{bab0bb63426a51ef} \\
+\midrule
+\textbf{Total} & \textbf{152} & Block \texttt{0x98} $= 152_{10}$ \cmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The 152 total records match block \texttt{0x98} exactly. Since the chain was
+reset to \texttt{0x0} before the run and each submitted hash produces one block,
+the block height is a count-verified consistency check that can be reproduced
+independently from the artifact JSONL files.
+
+%─────────────────────────────────────────────────────────────
+\section{Discussion and Limitations}
+\label{sec:discuss}
+%─────────────────────────────────────────────────────────────
+
+This run establishes that the AEI-V2G pipeline executes correctly on physical
+hardware: all five nodes communicated, routing decisions reached the right
+stations, V2G dispatch fired under real grid stress, and every decision was
+anchored on-chain. What it does not establish is general V2G economic benefit,
+congestion reduction relative to a reactive baseline, or correct behaviour
+outside a 20-minute controlled window. Scalability beyond five nodes and
+Byzantine-fault tolerance are not addressed.
+
+The decision to use deterministic rule-based engines rather than deep
+reinforcement learning is a deliberate regulatory choice, not a performance
+trade-off. A blockchain record stating ``Rule Reasoner, V2G\_trigger,
+$\sigma = 0.830 > 0.80$'' is directly auditable by an operator or regulator;
+a DRL action-probability vector is not. The Hardhat private chain provides
+tamper-evidence within a single-operator context; production deployment requires
+an IIoT-Chain PoA mesh where station nodes act as validators.
+
+Ginigeme and Wang~\cite{ginigeme2020distributed} report 81.9\% demand-variance
+reduction over a 24-hour microgrid simulation, and Zhou et al.~\cite{zhou2020v2g}
+demonstrate consortium-chain V2G trading---also in simulation. AEI-V2G gives up
+that simulation scale in exchange for physical execution: real inter-node
+latency, real deployment failures, and a tamper-evident audit trail that emerges
+from the hardware run itself.
+
+%─────────────────────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclude}
+%─────────────────────────────────────────────────────────────
+
+AEI-V2G demonstrates that a role-separated, blockchain-auditable, proactive V2G
+pipeline can be built from commodity hardware and open protocols and run
+end-to-end without simulation shortcuts. The 1200-second hardware run on a CAISO
+evening ramp confirms sub-ms LAVA decision latency, zero-loss route delivery,
+live V2G dispatch with SoC-filtered settlement, and 152-record blockchain
+anchoring verified by block-height match. The full artifact package is released
+for reproducibility. Future work will add a reactive baseline comparison, an
+IIoT-Chain PoA deployment, and 6G ISAC Layer~1 integration.
+
+%─────────────────────────────────────────────────────────────
+\begin{thebibliography}{9}
+
+\bibitem{krueger2020v2g}
+H.~Krueger and A.~Cruden,
+``Integration of electric vehicle user charging preferences into V2G aggregator controls,''
+\textit{Energy Reports}, 2020.
+
+\bibitem{ginigeme2020distributed}
+K.~Ginigeme and Z.~Wang,
+``Distributed optimal V2G approaches with battery degradation cost under real-time pricing,''
+\textit{IEEE Access}, 2020.
+
+\bibitem{zhou2020v2g}
+Z.~Zhou \textit{et al.},
+``Secure and efficient V2G energy trading: Integration of blockchain and edge computing,''
+\textit{IEEE Trans.\ Syst., Man, Cybern.}, 2020.
+
+\bibitem{isac2023}
+F.~Liu \textit{et al.},
+``Integrated sensing and communications: Towards dual-functional wireless networks for 6G,''
+\textit{IEEE J.\ Sel.\ Areas Commun.}, 2022.
+
+\bibitem{razzaque2025}
+M.~A.~Razzaque \textit{et al.},
+``Cybersecurity in V2G systems: A systematic review,''
+arXiv:2503.15730, 2025.
+
+\end{thebibliography}
+
+\end{document}

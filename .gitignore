@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.pytest-tmp*/
+.pytest_tmp/
+.pytest_tmp*/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+.aei/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Node / Hardhat
+node_modules/
+artifacts/
+cache/
+
+# Generated experiment outputs
+reports/
+data/
+deployments/
+
+# Local agent/session state
+.claude/*
+!.claude/agent-logs/
+!.claude/agent-logs/*.md
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

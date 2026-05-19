@@ -1,0 +1,16 @@
+__pycache__/
+.pytest_cache/
+.pytest-tmp*
+.pytest_tmp/
+.pytest_tmp*
+data/
+reports/
+*.pyc
+.git/
+.venv/
+venv/
+.env
+node_modules/
+artifacts/
+cache/
+deployments/

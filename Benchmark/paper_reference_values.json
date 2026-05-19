@@ -1,0 +1,47 @@
+{
+  "source": "Fakhrooeian and Pitz, Electric Power Systems Research 216 (2023) 109021",
+  "scope": "Published reference values extracted from Tables 2-5. Values are used as pattern targets, not exact validation targets, because this repo does not include DIgSILENT PowerFactory, Feeder 242, or the original BDEW profile exports.",
+  "table_1_simulation_parameters": {
+    "simulation_period": "28.04.2021 15:00-30.04.2021 15:00",
+    "step_size_min": 5,
+    "peak_start": "17:00",
+    "peak_end": "24:00",
+    "number_of_evs": 15,
+    "battery_capacity_kwh": 62,
+    "ev_acceptance_rate_kw": 6.6,
+    "charger_power_kw": 7.4,
+    "soc_max_pct": 80,
+    "soc_min_pct": 30,
+    "ready_by": "08:00"
+  },
+  "tables": {
+    "table_2_total_load_kw": {
+      "without_evs": {"min": 9.374, "avg": 24.489, "max": 38.479},
+      "scenario_1_worst_case": {"min": 9.374, "avg": 38.151, "max": 137.479},
+      "scenario_2_v2g_no_operator_control": {"min": 9.634, "avg": 35.430, "max": 117.878},
+      "scenario_3_v2g_operator_full_power": {"min": 13.392, "avg": 33.960, "max": 82.062},
+      "scenario_4_v2g_operator_limited_power": {"min": 10.643, "avg": 33.147, "max": 65.661}
+    },
+    "table_3_max_loading_pct": {
+      "without_evs": {"min": 7.437, "avg": 19.723, "max": 31.261},
+      "scenario_1_worst_case": {"min": 7.437, "avg": 30.673, "max": 113.262},
+      "scenario_2_v2g_no_operator_control": {"min": 7.646, "avg": 28.684, "max": 95.008},
+      "scenario_3_v2g_operator_full_power": {"min": 11.397, "avg": 27.217, "max": 64.690},
+      "scenario_4_v2g_operator_limited_power": {"min": 9.569, "avg": 26.619, "max": 51.135}
+    },
+    "table_4_power_loss_kw": {
+      "without_evs": {"min": 0.0493, "avg": 0.395, "max": 0.875},
+      "scenario_1_worst_case": {"min": 0.0493, "avg": 1.481, "max": 11.615},
+      "scenario_2_v2g_no_operator_control": {"min": 0.052, "avg": 1.209, "max": 8.156},
+      "scenario_3_v2g_operator_full_power": {"min": 0.117, "avg": 0.812, "max": 4.025},
+      "scenario_4_v2g_operator_limited_power": {"min": 0.078, "avg": 0.750, "max": 2.348}
+    },
+    "table_5_voltage_pu": {
+      "without_evs": {"umin_min": 0.962, "umin_avg": 0.975, "umin_max": 0.989, "umax_min": 0.986, "umax_avg": 0.990, "umax_max": 0.995},
+      "scenario_1_worst_case": {"umin_min": 0.890, "umin_avg": 0.965, "umin_max": 0.989, "umax_min": 0.974, "umax_avg": 0.989, "umax_max": 0.995},
+      "scenario_2_v2g_no_operator_control": {"umin_min": 0.912, "umin_avg": 0.967, "umin_max": 0.989, "umax_min": 0.981, "umax_avg": 0.989, "umax_max": 0.995},
+      "scenario_3_v2g_operator_full_power": {"umin_min": 0.938, "umin_avg": 0.969, "umin_max": 0.984, "umax_min": 0.987, "umax_avg": 0.989, "umax_max": 0.992},
+      "scenario_4_v2g_operator_limited_power": {"umin_min": 0.952, "umin_avg": 0.970, "umin_max": 0.986, "umax_min": 0.987, "umax_avg": 0.989, "umax_max": 0.993}
+    }
+  }
+}
