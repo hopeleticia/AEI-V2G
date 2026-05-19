@@ -679,3 +679,11 @@ Files touched:
 - `dev-log.md`
 Status: Done
 Details: `.claude/agent-logs/codex.md#2026-05-19T03:36:49Z`
+
+## 2026-05-19T03:45:12Z - Codex - T014
+Summary: Removed the `.claude` folder from Git tracking and updated `.gitignore` so local agent logs remain private/local instead of being pushed to GitHub.
+Files touched:
+- `.gitignore`
+- `dev-log.md`
+Status: Done
+Details: local-only `.claude/agent-logs/codex.md#2026-05-19T03:45:12Z`
