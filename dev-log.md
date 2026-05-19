@@ -653,3 +653,29 @@ Files touched:
 - `dev-log.md`
 Status: Done
 Details: `.claude/agent-logs/codex.md#2026-05-19T03:00:16Z`
+
+## 2026-05-19T03:36:49Z - Codex - T014
+Summary: Published the project to the new GitHub repository after adding repo-safe ignore rules, a `.env.example`, and replacing hardcoded deployment credentials with environment-variable placeholders.
+Files touched:
+- `.gitignore`
+- `.env.example`
+- `deploy/_check_logs.ps1`
+- `deploy/_check_procs.ps1`
+- `deploy/_diag_paho.ps1`
+- `deploy/_fix_dns_install.ps1`
+- `deploy/_fix_dns_v2.ps1`
+- `deploy/_install_apt.ps1`
+- `deploy/_install_deps.ps1`
+- `deploy/_install_system_wide.ps1`
+- `deploy/_install_target.ps1`
+- `deploy/_install_venv.ps1`
+- `deploy/_launch_cluster.ps1`
+- `deploy/_run_venv_setup.ps1`
+- `deploy/_tailscale_from_pi2_time.ps1`
+- `deploy/_test_coordinator.ps1`
+- `deploy/aggregate_results.ps1`
+- `deploy/run_pi_cluster.ps1`
+- `.claude/agent-logs/codex.md`
+- `dev-log.md`
+Status: Done
+Details: `.claude/agent-logs/codex.md#2026-05-19T03:36:49Z`

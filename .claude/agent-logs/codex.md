@@ -199,3 +199,7 @@ Rewrote `isac-v2g.md` as a continuation handoff for the AEI-V2G work. The docume
 ## 2026-05-19T03:00:16Z
 
 Updated `isac-v2g.md` with a Core Comparison Metrics section. The new section maps charging service, grid support, scheduling benefit, ISAC benefit, V2G participation, trust/blockchain, and responsiveness metrics to what each comparison is meant to prove.
+
+## 2026-05-19T03:36:49Z
+
+Prepared the project for publication to GitHub by adding `.gitignore` and `.env.example`, excluding local secrets/generated outputs, replacing hardcoded deployment credentials with environment-variable usage, creating the initial commit, adding `https://github.com/hopeleticia/AEI-V2G.git` as `origin`, and pushing `main`.
