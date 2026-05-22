@@ -1,0 +1,4 @@
+grid_stress: 0.32
+ev_wait_time: 0.28
+station_imbalance: 0.22
+energy_cost: 0.18

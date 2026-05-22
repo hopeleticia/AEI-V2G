@@ -1,0 +1,138 @@
+{
+  "created_utc": "2026-05-22T02:32:17.577252Z",
+  "command": "/app/eval/run_journal_study.py --config config/corridor_config.yaml --duration 86400 --output-dir reports/docker_experiment_20260522_113111",
+  "python": "3.13.13",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "runner": "eval.run_journal_study",
+  "scheduler": "scheduling.lava_scheduler.LAVAScheduler",
+  "fixture_policy": {
+    "paper_facing": true,
+    "test_only_dummy_fixtures_allowed": false,
+    "excluded_modules": [
+      "tests/test_scheduler_injection.py"
+    ]
+  },
+  "config": {
+    "path": "config/corridor_config.yaml",
+    "seed": 42,
+    "sha256": "beba7f8da0649f8f24982230d1b8605113ebd50155cdb014469e02fd4af20d17"
+  },
+  "duration_seconds_per_scenario": 86400,
+  "required_data_sources": [
+    {
+      "name": "CAISO demand trend load profile",
+      "config_key": "grid.load_profile_csv",
+      "path": "/app/data/grid_profiles/caiso_2024-05-01_2024-05-07.csv",
+      "sha256": "be0b402d41ac8136d7939ee5acf312f67e39463ace415284004abd53aa280f08",
+      "bytes": 139214,
+      "source_card": "data_sources/CAISO_DATASET_CARD.md"
+    }
+  ],
+  "outputs": {
+    "scenario_comparison_csv": "scenario_comparison.csv",
+    "component_metrics_csv": "component_metrics.csv",
+    "station_metrics_csv": "station_metrics.csv",
+    "scenario_detail_json_pattern": "*_detail.json",
+    "scenario_trace_csv_pattern": "*_trace.csv",
+    "scenario_chain_jsonl_pattern": "*_chain.jsonl",
+    "input_config": "inputs/corridor_config.yaml",
+    "provenance": "provenance.json"
+  },
+  "artifacts": [
+    {
+      "path": "component_metrics.csv",
+      "sha256": "b51b5789baea80ce4bf26174f328202c138b55534b2a5535fe1d4042f1090aa9",
+      "bytes": 14692
+    },
+    {
+      "path": "evening_peak_v2g_chain.jsonl",
+      "sha256": "50e4d7c1f3770956eb16143679dd58a3265f833fdf02bdce34b49462451d9f89",
+      "bytes": 1920660
+    },
+    {
+      "path": "evening_peak_v2g_detail.json",
+      "sha256": "baa9ac1610f1803f5780b36325a6e6c04d12fa2a020391f7ce1850a05e16fb54",
+      "bytes": 10121
+    },
+    {
+      "path": "evening_peak_v2g_trace.csv",
+      "sha256": "b63b27f0705855e556967a1613743d89ca0efa55c2fb72bb21b8af17a18cfab3",
+      "bytes": 118675
+    },
+    {
+      "path": "event_surge_chain.jsonl",
+      "sha256": "8f1d93fac6c572382c2d4a900b4b8dbdc39d8fe616512a8cef3ed2bd37677252",
+      "bytes": 2324237
+    },
+    {
+      "path": "event_surge_detail.json",
+      "sha256": "c2fdc29518c69e4cd3ed3f559ba09f565c92223c62ec8f8029694a1cd1f40fc5",
+      "bytes": 10279
+    },
+    {
+      "path": "event_surge_trace.csv",
+      "sha256": "d8583b89a0994f5a2302452bf5bda5ed82e1405e04202f2c1a6214276392e9d4",
+      "bytes": 133618
+    },
+    {
+      "path": "journal_summary.json",
+      "sha256": "4ea55c2a5152376d30f92cbe18c7d7311baaa25e4f239c6603d44e3d6eade7f3",
+      "bytes": 5174
+    },
+    {
+      "path": "rural_degraded_isac_chain.jsonl",
+      "sha256": "e2d05ed55e9b9a97e4cdda74a09ee2dc5c1dab05c35f53fbd10087ba561fdf6b",
+      "bytes": 1856236
+    },
+    {
+      "path": "rural_degraded_isac_detail.json",
+      "sha256": "cf53b884e0aeaa0d80b0049e038f28f6d01752e5a7f3e25afdfd985cedf4a143",
+      "bytes": 10164
+    },
+    {
+      "path": "rural_degraded_isac_trace.csv",
+      "sha256": "b1c68953a8c6c3d81e330bdad03afe18acbb212a447e7438d7940e74190ec782",
+      "bytes": 121901
+    },
+    {
+      "path": "scenario_comparison.csv",
+      "sha256": "9ea9e56dd936521cfa05278eecb65e21efe6dcc8640d74fb79030f76e0cd1603",
+      "bytes": 1111
+    },
+    {
+      "path": "station_metrics.csv",
+      "sha256": "20799d6b355e172e052aaf8baf3a992d05f57a4eef6fb78cf0b6ca26d4962263",
+      "bytes": 1233
+    },
+    {
+      "path": "wan_outage_edge_only_chain.jsonl",
+      "sha256": "724e296069217ff61200648148d006af9296b218d6cb38919f2785c4a345b53c",
+      "bytes": 1876535
+    },
+    {
+      "path": "wan_outage_edge_only_detail.json",
+      "sha256": "cf80be23e12f449079b666b3c30759bdb06aaf204bc4524ab4adf7c44f49da6d",
+      "bytes": 10279
+    },
+    {
+      "path": "wan_outage_edge_only_trace.csv",
+      "sha256": "468bcf3eb37965e1f0fa6456f784372b65c71221d3e9c249b9f087f021811e07",
+      "bytes": 118971
+    },
+    {
+      "path": "weekday_nominal_chain.jsonl",
+      "sha256": "c3fcd751cbb46b7b2e2e878738027ae052392ba4c2852db9b4c7d58d95bd78c4",
+      "bytes": 1805395
+    },
+    {
+      "path": "weekday_nominal_detail.json",
+      "sha256": "23cfec39291f00f3e78c23576378dda49cd1a832293f11b07a25cc5d2868e5d1",
+      "bytes": 10201
+    },
+    {
+      "path": "weekday_nominal_trace.csv",
+      "sha256": "d38432c8f6d4ad7d310ab1b1797d1e6618db77a330977cd77bae1cf66cc94e8b",
+      "bytes": 120418
+    }
+  ]
+}

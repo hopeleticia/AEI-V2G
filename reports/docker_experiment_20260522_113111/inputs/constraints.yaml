@@ -1,0 +1,5 @@
+min_battery_after_v2g: 20
+max_grid_frequency_deviation_hz: 0.25
+max_station_utilization: 0.98
+min_decision_confidence: 0.35
+max_engine_divergence: 0.55
