@@ -28,6 +28,8 @@ cache/
 reports/
 data/
 deployments/
+!deployments/
+!deployments/purechain_credit_ledger.json
 
 # Local agent/session state
 .claude/

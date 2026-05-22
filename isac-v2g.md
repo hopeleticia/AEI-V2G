@@ -48,7 +48,7 @@ This is important for defending the work honestly.
 | Charging stations | Simulated corridor stations with configured slots and power limits. |
 | V2G dispatch | Implemented in the simulator and settlement logs. |
 | Blockchain audit | Local hash-chain works now. |
-| Purechain on-chain credits | Deployment support exists; needs private key, deployment, and rerun to collect on-chain transaction results. |
+| Purechain on-chain credits | Deployed and verified; latest Docker run records on-chain credit transaction counts and success status. |
 | Raspberry Pi deployment | Docker containers currently represent the real-world components; physical Pis are not required for the present experiments. |
 
 ## Data Inputs
@@ -219,15 +219,15 @@ Current figures:
 
 ## Current Result Snapshot
 
-The latest full 24-hour by 5-scenario Docker experiment in `reports/docker_experiment/` produced:
+The latest full 24-hour by 5-scenario Docker experiment in `reports/docker_experiment_20260522_113111/` produced:
 
-| Scenario | Spawned EVs | Served EVs | Served ratio | Grid-stress reduction | V2G supplied | V2G revenue | Chain valid |
-|---|---:|---:|---:|---:|---:|---:|---|
-| Weekday nominal | 621 | 495 | 96.68% | 64.60% | 1630.467 kWh | 1021.50 | true |
-| Evening peak V2G | 775 | 628 | 97.21% | 29.95% | 2055.267 kWh | 1310.18 | true |
-| Event surge | 1278 | 734 | 68.66% | 62.28% | 2411.400 kWh | 1527.14 | true |
-| Rural degraded ISAC | 688 | 548 | 96.48% | 60.21% | 1804.467 kWh | 1138.28 | true |
-| WAN outage edge-only | 724 | 575 | 96.48% | 41.12% | 1912.600 kWh | 1214.73 | true |
+| Scenario | Spawned EVs | Served EVs | Served ratio | Grid-stress reduction | V2G supplied | V2G revenue | Credits awarded | Ledger txs | Tx status | Chain valid |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
+| Weekday nominal | 621 | 495 | 96.68% | 64.60% | 1630.467 kWh | 1021.50 | 3260 | 1 | success | true |
+| Evening peak V2G | 775 | 628 | 97.21% | 29.95% | 2055.267 kWh | 1310.18 | 4110 | 1 | success | true |
+| Event surge | 1278 | 734 | 68.66% | 62.28% | 2411.400 kWh | 1527.14 | 4822 | 1 | success | true |
+| Rural degraded ISAC | 688 | 548 | 96.48% | 60.21% | 1804.467 kWh | 1138.28 | 3608 | 1 | success | true |
+| WAN outage edge-only | 724 | 575 | 96.48% | 41.12% | 1912.600 kWh | 1214.73 | 3825 | 1 | success | true |
 
 Interpretation:
 
@@ -238,6 +238,7 @@ Interpretation:
 - Station B carries the highest load partly because it has the highest configured capacity.
 - The scheduler is computationally lightweight in simulation, but this is not the same as physical end-to-end latency.
 - Local audit-chain validation passes.
+- Purechain credit settlement runs in `on_chain` mode with one successful scenario-level CreditLedger transaction per scenario.
 
 ## How To Run The Full Journal-Style Docker Experiment
 
@@ -304,9 +305,10 @@ The repo now has two layers of trust logging.
 2. Purechain credit ledger:
    - Smart contract exists at `contracts/CreditLedger.sol`.
    - Python client exists at `logging_layer/chain_client.py`.
-   - Docker env wiring exists in `docker-compose.pi.yml`.
-   - Deployment script is available.
-   - Needs your private key and deployed contract address before on-chain credit results are produced.
+   - Deployment proof is recorded in `deploy/PURECHAIN_CREDIT_LEDGER.md` and `deployments/purechain_credit_ledger.json`.
+   - Deployed contract address: `0x876a2e7d1EDC602A874B434a03dC66976c586bA3`.
+   - Deployment transaction: `0x23a202273b2d0e92ab22878f250c37ff9d179def72622bed3e2968a31333704c`.
+   - The latest Docker experiment used the deployed contract and produced on-chain credit transaction results.
 
 Purechain is gas-free, so do not present blockchain overhead as Ether/gas cost. For Purechain, the useful blockchain metrics are:
 
@@ -331,10 +333,11 @@ AEI_CREDIT_LEDGER_ADDRESS=
 
 You will fill in the private key yourself.
 
-Deploy the contract:
+Deploy the contract with Hardhat or the Purechain SDK:
 
 ```powershell
 npm run deploy:credit-ledger:purechain
+npm run deploy:credit-ledger:purechainlib
 ```
 
 After deployment, the repo should update:
@@ -343,7 +346,7 @@ After deployment, the repo should update:
 - `deployments/purechain_credit_ledger.json`
 - `deploy/PURECHAIN_CREDIT_LEDGER.md`
 
-Then rerun the full Docker experiment. New runs should include credit ledger transaction counts and transaction hashes when the Purechain client is configured successfully.
+Then rerun the full Docker experiment. New runs should include credit ledger transaction counts, success/failure status fields, and nonzero credits awarded when the Purechain client is configured successfully.
 
 ## Benchmark Implementation Status
 
@@ -381,7 +384,7 @@ Use these careful phrasings:
 - "Simulation-level ISAC abstraction" instead of "real ISAC waveform implementation."
 - "Calibrated regression-style SoC proxy" instead of "trained SoC prediction model."
 - "Docker containers represent system components" instead of "Docker replaces Raspberry Pis" when speaking formally.
-- "Local hash-chain audit currently works; Purechain deployment is configured but must be run" instead of "blockchain is fully deployed."
+- "Local hash-chain audit works; Purechain credit settlement is deployed and verified for scenario-level V2G credit awards" instead of "all blockchain workflows are fully productionized."
 - "Event surge exceeds station capacity" instead of "AEI-V2G failed in event surge."
 - "Scheduler compute latency" instead of "full deployment latency" for the current latency plot.
 
@@ -391,13 +394,13 @@ Use these careful phrasings:
 - ISAC sensing is modeled from features such as range, speed, RSSI-like strength, and Doppler-like shift; raw RF signal processing is not implemented.
 - SoC proxy is calibrated, not trained on measured battery data.
 - The reactive baseline is internal and simple.
-- On-chain Purechain credit metrics require contract deployment and rerunning the experiment.
+- On-chain Purechain credit metrics are currently scenario-level settlement transactions, not one transaction per individual EV discharge event.
 
 ## Recommended Next Steps
 
-1. Deploy `CreditLedger.sol` to Purechain and rerun the full Docker experiment.
-2. Confirm that `scenario_comparison.csv` includes on-chain credit transaction counts and failures.
-3. Add a figure or table for:
+1. Decide whether future runs should settle credits per scenario, per station, or per EV depending on desired chain-load realism.
+2. Add transaction hashes or settlement receipt excerpts to the paper appendix if the paper needs direct audit links.
+3. Extend the figure/table set for:
    - V2G discharge events.
    - Credits awarded.
    - Purechain transaction success/failure.

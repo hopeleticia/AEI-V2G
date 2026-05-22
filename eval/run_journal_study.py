@@ -143,6 +143,7 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
         "forecast_errors": [],
         "route_distribution": Counter(),
         "engine_votes": Counter(),
+        "v2g_ledger_statuses": Counter(),
         "minute_rows": [],
         "unique_sensed_ev_ids": set(),
         "charge_request_ev_ids": set(),
@@ -232,6 +233,7 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
         telemetry["v2g"]["credits_awarded"] += v2g.get("credits_awarded", 0)
         telemetry["v2g"]["credit_ledger_transactions"] += v2g.get("credit_ledger_transactions", 0)
         telemetry["v2g"]["credit_ledger_failures"] += v2g.get("credit_ledger_failures", 0)
+        telemetry["v2g_ledger_statuses"].update(v2g.get("credit_ledger_statuses", {}))
         if v2g.get("credit_ledger_mode") == "on_chain":
             telemetry["v2g"]["credit_ledger_on_chain_ticks"] += 1
         telemetry["grid"]["stress"].append(relieved_grid["stress"])
@@ -267,6 +269,7 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
             }
         )
 
+    settle_scenario_credit_ledger(scenario_name, telemetry)
     components = component_metrics(corridor, telemetry, completed, chain_path, scenario_name, bool(config.get("wan_outage")))
     return {
         "scenario": scenario_name,
@@ -277,6 +280,29 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
         "components": components,
         "last_15_minutes": telemetry["minute_rows"][-15:],
     }, telemetry["minute_rows"]
+
+
+def settle_scenario_credit_ledger(scenario_name: str, telemetry: dict) -> None:
+    supplied_kwh = float(telemetry["v2g"]["supplied_kwh"])
+    credits = int(supplied_kwh / 0.5)
+    telemetry["v2g"]["credits_awarded"] = credits
+    if credits <= 0:
+        return
+    try:
+        from logging_layer.chain_client import build_from_env
+        ledger = build_from_env()
+    except Exception:
+        ledger = None
+    if ledger is None:
+        return
+    result = ledger.award_credits(f"{scenario_name}_v2g_total", supplied_kwh, "scenario_total")
+    status = result.get("ledger_status", "failed")
+    telemetry["v2g_ledger_statuses"][status] += 1
+    telemetry["v2g"]["credit_ledger_on_chain_ticks"] += 1
+    if result.get("tx_hash") and status == "success":
+        telemetry["v2g"]["credit_ledger_transactions"] += 1
+    else:
+        telemetry["v2g"]["credit_ledger_failures"] += 1
 
 
 def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain_path: str, scenario_name: str, wan_outage: bool) -> dict:
@@ -361,6 +387,7 @@ def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain
             "credit_ledger_mode": "on_chain" if telemetry["v2g"]["credit_ledger_on_chain_ticks"] else "local_hash_only",
             "credit_ledger_transactions": telemetry["v2g"]["credit_ledger_transactions"],
             "credit_ledger_failures": telemetry["v2g"]["credit_ledger_failures"],
+            "credit_ledger_statuses": dict(telemetry["v2g_ledger_statuses"]),
         },
         "blockchain_validation": {
             "chain_file": os.path.basename(chain_path),

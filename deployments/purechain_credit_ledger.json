@@ -1,0 +1,12 @@
+{
+  "network": "purechain",
+  "contract_address": "0x876a2e7d1EDC602A874B434a03dC66976c586bA3",
+  "chain_id": 900520900520,
+  "rpc_url": "https://purechainnode.com:8547",
+  "deployer_address": "0x61b750EAB5D2e5fb36c91eEF196bE83561d4FE5d",
+  "deployment_tx_hash": "0x23a202273b2d0e92ab22878f250c37ff9d179def72622bed3e2968a31333704c",
+  "deployment_status": "success",
+  "block_number": 1224556,
+  "contract_name": "CreditLedger",
+  "deployed_at": "2026-05-22T01:59:59.000Z"
+}
