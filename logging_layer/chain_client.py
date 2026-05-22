@@ -27,6 +27,15 @@ _RPC_URL     = os.environ.get("AEI_ETH_RPC_URL") or os.environ.get("RPC_URL", "h
 _ACCOUNT     = os.environ.get("AEI_ETH_ACCOUNT",     "")
 _PRIVATE_KEY = os.environ.get("AEI_ETH_PRIVATE_KEY") or os.environ.get("PRIVATE_KEY", "")
 _CREDIT_LEDGER_ADDRESS = os.environ.get("AEI_CREDIT_LEDGER_ADDRESS", "")
+def _env_int(name: str, default: int) -> int:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    return int(value)
+
+
+_GAS_PRICE_WEI = _env_int("AEI_ETH_GAS_PRICE_WEI", 0)
+_TX_TIMEOUT_SECONDS = _env_int("AEI_ETH_TX_TIMEOUT_SECONDS", 120)
 
 # Account #3 is kept as the immutable log sink — not assigned to any Pi node.
 # All nodes send 0-ETH transactions to this address with decision hashes
@@ -115,6 +124,7 @@ class ChainClient:
         self._account     = Web3.to_checksum_address(derived_account)
         self._private_key = private_key
         self._chain_id    = self._w3.eth.chain_id
+        self._gas_price   = _GAS_PRICE_WEI
         self._lock        = threading.Lock()
         self._nonce       = self._w3.eth.get_transaction_count(self._account)
         self._credit_ledger = None
@@ -147,7 +157,7 @@ class ChainClient:
                     "to":       _LOG_SINK,
                     "value":    0,
                     "gas":      50_000,
-                    "gasPrice": self._w3.eth.gas_price,
+                    "gasPrice": self._gas_price,
                     "nonce":    self._nonce,
                     "chainId":  self._chain_id,
                     "data":     "0x" + payload.hex(),
@@ -182,15 +192,20 @@ class ChainClient:
             "tx_hash": None,
             "ledger_mode": "local_only",
             "ledger_status": "skipped" if credits <= 0 else "local_only",
+            "block_number": None,
         }
         if self._credit_ledger is None or credits <= 0:
             return result
-        tx_hash = self._send_contract_tx(
+        receipt = self._send_contract_tx(
             self._credit_ledger.functions.award_credits(ev_id, station_id, kwh_milli)
         )
-        result["tx_hash"] = tx_hash
         result["ledger_mode"] = "on_chain"
-        result["ledger_status"] = "submitted" if tx_hash else "failed"
+        if receipt:
+            result["tx_hash"] = receipt["tx_hash"]
+            result["ledger_status"] = receipt["status"]
+            result["block_number"] = receipt["block_number"]
+        else:
+            result["ledger_status"] = "failed"
         return result
 
     def redeem_credits(self, ev_id: str, amount: int) -> Optional[str]:
@@ -207,13 +222,13 @@ class ChainClient:
             log.exception("credit balance query failed (ev_id=%s)", ev_id)
             return None
 
-    def _send_contract_tx(self, fn) -> Optional[str]:
+    def _send_contract_tx(self, fn) -> Optional[dict]:
         try:
             with self._lock:
                 tx = fn.build_transaction({
                     "from": self._account,
-                    "gas": 180_000,
-                    "gasPrice": self._w3.eth.gas_price,
+                    "gas": 500_000,
+                    "gasPrice": self._gas_price,
                     "nonce": self._nonce,
                     "chainId": self._chain_id,
                 })
@@ -221,7 +236,12 @@ class ChainClient:
                 tx_bytes = getattr(signed, "raw_transaction", None) or signed.rawTransaction
                 tx_hash = self._w3.eth.send_raw_transaction(tx_bytes)
                 self._nonce += 1
-            return tx_hash.hex()
+            receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=_TX_TIMEOUT_SECONDS)
+            return {
+                "tx_hash": tx_hash.hex(),
+                "status": "success" if receipt.status == 1 else "failed",
+                "block_number": int(receipt.blockNumber),
+            }
         except Exception:
             log.exception("credit ledger transaction failed")
             return None

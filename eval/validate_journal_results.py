@@ -11,6 +11,15 @@ from dataclasses import dataclass
 NUMERIC_TOLERANCE = 0.01
 
 
+BLOCKCHAIN_SETTLEMENT_REQUIRED = (
+    "contract_address",
+    "chain_id",
+    "transaction_hash",
+    "block_number",
+    "status",
+)
+
+
 @dataclass
 class ValidationResult:
     scenario: str
@@ -21,6 +30,7 @@ class ValidationResult:
     v2g_records_match: bool
     station_energy_matches_total: bool
     station_v2g_matches_total: bool
+    blockchain_settlement_present: bool
     issues: list[str]
 
     @property
@@ -33,6 +43,7 @@ class ValidationResult:
             and self.v2g_records_match
             and self.station_energy_matches_total
             and self.station_v2g_matches_total
+            and self.blockchain_settlement_present
             and not self.issues
         )
 
@@ -114,6 +125,8 @@ def validate_scenario(summary_row: dict, csv_row: dict, detail: dict, chain: dic
     if not station_v2g_matches:
         issues.append("Station V2G sum does not match total")
 
+    blockchain_settlement_present = check_blockchain_settlement(components, issues)
+
     return ValidationResult(
         scenario=scenario,
         csv_matches_detail=csv_matches,
@@ -123,8 +136,38 @@ def validate_scenario(summary_row: dict, csv_row: dict, detail: dict, chain: dic
         v2g_records_match=v2g_records_match,
         station_energy_matches_total=station_energy_matches,
         station_v2g_matches_total=station_v2g_matches,
+        blockchain_settlement_present=blockchain_settlement_present,
         issues=issues,
     )
+
+
+def check_blockchain_settlement(components: dict, issues: list[str]) -> bool:
+    block = components.get("blockchain_settlement")
+    if not isinstance(block, dict):
+        issues.append("blockchain_settlement block is missing from detail.components")
+        return False
+    missing = [field for field in BLOCKCHAIN_SETTLEMENT_REQUIRED if block.get(field) in (None, "")]
+    if missing:
+        issues.append(f"blockchain_settlement is missing required fields: {missing}")
+        return False
+    tx_hash = block["transaction_hash"]
+    if not (isinstance(tx_hash, str) and tx_hash.startswith("0x") and len(tx_hash) == 66):
+        issues.append(f"blockchain_settlement.transaction_hash is not a 0x-prefixed 32-byte hex: {tx_hash}")
+        return False
+    addr = block["contract_address"]
+    if not (isinstance(addr, str) and addr.startswith("0x") and len(addr) == 42):
+        issues.append(f"blockchain_settlement.contract_address is not a 0x-prefixed 20-byte hex: {addr}")
+        return False
+    if not isinstance(block["block_number"], int) or block["block_number"] <= 0:
+        issues.append(f"blockchain_settlement.block_number is not a positive integer: {block['block_number']}")
+        return False
+    if not isinstance(block["chain_id"], int) or block["chain_id"] <= 0:
+        issues.append(f"blockchain_settlement.chain_id is not a positive integer: {block['chain_id']}")
+        return False
+    if block["status"] not in ("success", "failed"):
+        issues.append(f"blockchain_settlement.status must be 'success' or 'failed', got: {block['status']}")
+        return False
+    return True
 
 
 def validate_chain(path: str) -> dict:
@@ -208,12 +251,12 @@ def write_markdown(validation: dict, output_path: str) -> None:
         "",
         "## Scenario Validation Table",
         "",
-        "| Scenario | CSV/JSON | Chain Links | Recomputed Hashes | Route Records | V2G Records | Station Energy | Station V2G | Status |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "| Scenario | CSV/JSON | Chain Links | Recomputed Hashes | Route Records | V2G Records | Station Energy | Station V2G | Blockchain Settlement | Status |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for row in validation["scenario_results"]:
         lines.append(
-            "| {scenario} | {csv} | {links} | {hashes} | {route} | {v2g} | {energy} | {station_v2g} | {status} |".format(
+            "| {scenario} | {csv} | {links} | {hashes} | {route} | {v2g} | {energy} | {station_v2g} | {settlement} | {status} |".format(
                 scenario=row["scenario"],
                 csv=mark(row["csv_matches_detail"]),
                 links=mark(row["chain_links_valid"]),
@@ -222,6 +265,7 @@ def write_markdown(validation: dict, output_path: str) -> None:
                 v2g=mark(row["v2g_records_match"]),
                 energy=mark(row["station_energy_matches_total"]),
                 station_v2g=mark(row["station_v2g_matches_total"]),
+                settlement=mark(row.get("blockchain_settlement_present", False)),
                 status="PASS" if row["passed"] else "FAIL",
             )
         )

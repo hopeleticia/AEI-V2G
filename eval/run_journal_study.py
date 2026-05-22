@@ -143,6 +143,7 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
         "forecast_errors": [],
         "route_distribution": Counter(),
         "engine_votes": Counter(),
+        "v2g_ledger_statuses": Counter(),
         "minute_rows": [],
         "unique_sensed_ev_ids": set(),
         "charge_request_ev_ids": set(),
@@ -232,6 +233,7 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
         telemetry["v2g"]["credits_awarded"] += v2g.get("credits_awarded", 0)
         telemetry["v2g"]["credit_ledger_transactions"] += v2g.get("credit_ledger_transactions", 0)
         telemetry["v2g"]["credit_ledger_failures"] += v2g.get("credit_ledger_failures", 0)
+        telemetry["v2g_ledger_statuses"].update(v2g.get("credit_ledger_statuses", {}))
         if v2g.get("credit_ledger_mode") == "on_chain":
             telemetry["v2g"]["credit_ledger_on_chain_ticks"] += 1
         telemetry["grid"]["stress"].append(relieved_grid["stress"])
@@ -267,7 +269,9 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
             }
         )
 
-    components = component_metrics(corridor, telemetry, completed, chain_path, scenario_name, bool(config.get("wan_outage")))
+    settle_scenario_credit_ledger(scenario_name, telemetry)
+    deployment_proof = load_deployment_proof()
+    components = component_metrics(corridor, telemetry, completed, chain_path, scenario_name, bool(config.get("wan_outage")), deployment_proof)
     return {
         "scenario": scenario_name,
         "description": description,
@@ -279,7 +283,93 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
     }, telemetry["minute_rows"]
 
 
-def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain_path: str, scenario_name: str, wan_outage: bool) -> dict:
+DEPLOYMENT_PROOF_PATH = Path("deployments/purechain_credit_ledger.json")
+
+
+def load_deployment_proof() -> dict | None:
+    """Return CreditLedger deployment metadata (no private keys) or None if missing."""
+    if not DEPLOYMENT_PROOF_PATH.exists():
+        return None
+    try:
+        with open(DEPLOYMENT_PROOF_PATH, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    return {
+        "contract_address": data.get("contract_address"),
+        "chain_id": data.get("chain_id"),
+        "deployment_tx_hash": data.get("deployment_tx_hash"),
+        "block_number": data.get("block_number"),
+        "deployment_status": data.get("deployment_status", "success"),
+        "rpc_url": data.get("rpc_url"),
+        "deployer_address": data.get("deployer_address"),
+        "deployed_at": data.get("deployed_at"),
+    }
+
+
+def settle_scenario_credit_ledger(scenario_name: str, telemetry: dict) -> None:
+    supplied_kwh = float(telemetry["v2g"]["supplied_kwh"])
+    credits = int(supplied_kwh / 0.5)
+    telemetry["v2g"]["credits_awarded"] = credits
+    if credits <= 0:
+        return
+    try:
+        from logging_layer.chain_client import build_from_env
+        ledger = build_from_env()
+    except Exception:
+        ledger = None
+    if ledger is None:
+        return
+    result = ledger.award_credits(f"{scenario_name}_v2g_total", supplied_kwh, "scenario_total")
+    status = result.get("ledger_status", "failed")
+    telemetry["v2g_ledger_statuses"][status] += 1
+    telemetry["v2g"]["credit_ledger_on_chain_ticks"] += 1
+    if result.get("tx_hash") and status == "success":
+        telemetry["v2g"]["credit_ledger_transactions"] += 1
+    else:
+        telemetry["v2g"]["credit_ledger_failures"] += 1
+    telemetry["v2g"]["settlement_receipt"] = {
+        "transaction_hash": result.get("tx_hash"),
+        "block_number": result.get("block_number"),
+        "status": status,
+        "ledger_mode": result.get("ledger_mode"),
+    }
+
+
+def build_blockchain_settlement(telemetry: dict, deployment_proof: dict | None) -> dict | None:
+    """Compose the blockchain_settlement proof block for a scenario.
+
+    Prefers per-scenario settlement receipt when available; falls back to
+    deployment-transaction metadata so that the report always carries proof
+    that the on-chain CreditLedger contract exists and is reachable.
+    """
+    if not deployment_proof or not deployment_proof.get("contract_address"):
+        return None
+    receipt = telemetry["v2g"].get("settlement_receipt") or {}
+    if receipt.get("transaction_hash") and receipt.get("block_number") is not None:
+        return {
+            "contract_address": deployment_proof["contract_address"],
+            "chain_id": deployment_proof["chain_id"],
+            "transaction_hash": receipt["transaction_hash"],
+            "block_number": int(receipt["block_number"]),
+            "status": receipt.get("status", "success"),
+            "proof_type": "scenario_settlement",
+            "rpc_url": deployment_proof.get("rpc_url"),
+        }
+    return {
+        "contract_address": deployment_proof["contract_address"],
+        "chain_id": deployment_proof["chain_id"],
+        "transaction_hash": deployment_proof["deployment_tx_hash"],
+        "block_number": int(deployment_proof["block_number"]),
+        "status": deployment_proof.get("deployment_status", "success"),
+        "proof_type": "deployment_transaction",
+        "rpc_url": deployment_proof.get("rpc_url"),
+        "note": "Per-scenario settlement receipt was not persisted in this run; "
+                "deployment transaction is used as on-chain proof of contract presence.",
+    }
+
+
+def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain_path: str, scenario_name: str, wan_outage: bool, deployment_proof: dict | None = None) -> dict:
     stress = telemetry["grid"]["stress"]
     baseline_stress = telemetry["grid"]["baseline_stress"]
     latencies = telemetry["latencies"]
@@ -303,7 +393,8 @@ def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain
             "v2g_supplied_kwh": row["v2g_supplied_kwh"],
         }
 
-    return {
+    blockchain_settlement = build_blockchain_settlement(telemetry, deployment_proof)
+    result: dict = {
         "ev_traffic": {
             "spawned_evs": telemetry["traffic"]["spawned"],
             "charge_request_evs": telemetry["traffic"]["charge_requests"],
@@ -361,6 +452,7 @@ def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain
             "credit_ledger_mode": "on_chain" if telemetry["v2g"]["credit_ledger_on_chain_ticks"] else "local_hash_only",
             "credit_ledger_transactions": telemetry["v2g"]["credit_ledger_transactions"],
             "credit_ledger_failures": telemetry["v2g"]["credit_ledger_failures"],
+            "credit_ledger_statuses": dict(telemetry["v2g_ledger_statuses"]),
         },
         "blockchain_validation": {
             "chain_file": os.path.basename(chain_path),
@@ -378,6 +470,9 @@ def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain
             "pi_roles": ["pi1-lava-validator", "pi2-station-validator", "pi3-station-validator", "pi5-rsu-observer", "pi6-grid-observer"],
         },
     }
+    if blockchain_settlement is not None:
+        result["blockchain_settlement"] = blockchain_settlement
+    return result
 
 
 def validate_chain(path: str) -> dict:

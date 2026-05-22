@@ -12,12 +12,16 @@ class DecisionLog:
         self.path = path
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.previous_hash = self._load_last_hash()
+        self._anchor_enabled = os.environ.get("AEI_ANCHOR_DECISION_LOGS", "").lower() in {"1", "true", "yes"}
         # Connect to the private Ethereum chain if credentials are available.
         # Falls back to local-only mode silently when web3 / env vars are absent.
-        try:
-            from logging_layer.chain_client import build_from_env
-            self._chain = build_from_env()
-        except Exception:
+        if self._anchor_enabled:
+            try:
+                from logging_layer.chain_client import build_from_env
+                self._chain = build_from_env()
+            except Exception:
+                self._chain = None
+        else:
             self._chain = None
 
     def append(self, event_type: str, payload: dict) -> dict:

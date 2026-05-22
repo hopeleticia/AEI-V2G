@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "deploy:credit-ledger:purechain": "hardhat run scripts/deploy_credit_ledger.js --network purechain"
+    "deploy:credit-ledger:purechain": "hardhat run scripts/deploy_credit_ledger.js --network purechain",
+    "deploy:credit-ledger:purechainlib": "node scripts/deploy_credit_ledger_purechainlib.js",
+    "verify:credit-ledger:purechain": "hardhat run scripts/verify_credit_ledger_deployment.js --network purechain"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
@@ -13,6 +15,7 @@
   },
   "dependencies": {
     "lib": "^5.1.0",
-    "purechain": "^1.0.5"
+    "purechain": "^1.0.5",
+    "purechainlib": "^2.0.8"
   }
 }
