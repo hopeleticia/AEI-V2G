@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -90,6 +91,15 @@ except ImportError:
     _WEB3_AVAILABLE = False
 
 
+def _normalize_tx_hash(value) -> Optional[str]:
+    if value is None:
+        return None
+    tx_hash = value.hex() if hasattr(value, "hex") else str(value)
+    if not tx_hash.startswith("0x"):
+        tx_hash = "0x" + tx_hash
+    return tx_hash
+
+
 class ChainClient:
     """
     Anchors AEI-V2G decision hashes on the private Ethereum chain.
@@ -167,7 +177,7 @@ class ChainClient:
                 tx_hash  = self._w3.eth.send_raw_transaction(tx_bytes)
                 self._nonce += 1
 
-            tx_hex = tx_hash.hex()
+            tx_hex = _normalize_tx_hash(tx_hash)
             log.debug("anchored %s:%s… → tx=%s…", event_type, decision_hash[:12], tx_hex[:16])
             return tx_hex
 
@@ -193,6 +203,9 @@ class ChainClient:
             "ledger_mode": "local_only",
             "ledger_status": "skipped" if credits <= 0 else "local_only",
             "block_number": None,
+            "transaction_submission_latency_ms": None,
+            "transaction_confirmation_latency_ms": None,
+            "transaction_total_latency_ms": None,
         }
         if self._credit_ledger is None or credits <= 0:
             return result
@@ -204,6 +217,9 @@ class ChainClient:
             result["tx_hash"] = receipt["tx_hash"]
             result["ledger_status"] = receipt["status"]
             result["block_number"] = receipt["block_number"]
+            result["transaction_submission_latency_ms"] = receipt["transaction_submission_latency_ms"]
+            result["transaction_confirmation_latency_ms"] = receipt["transaction_confirmation_latency_ms"]
+            result["transaction_total_latency_ms"] = receipt["transaction_total_latency_ms"]
         else:
             result["ledger_status"] = "failed"
         return result
@@ -224,6 +240,7 @@ class ChainClient:
 
     def _send_contract_tx(self, fn) -> Optional[dict]:
         try:
+            total_start = time.perf_counter()
             with self._lock:
                 tx = fn.build_transaction({
                     "from": self._account,
@@ -234,13 +251,20 @@ class ChainClient:
                 })
                 signed = self._w3.eth.account.sign_transaction(tx, self._private_key)
                 tx_bytes = getattr(signed, "raw_transaction", None) or signed.rawTransaction
+                submit_start = time.perf_counter()
                 tx_hash = self._w3.eth.send_raw_transaction(tx_bytes)
+                submit_end = time.perf_counter()
                 self._nonce += 1
+            confirm_start = time.perf_counter()
             receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=_TX_TIMEOUT_SECONDS)
+            confirm_end = time.perf_counter()
             return {
-                "tx_hash": tx_hash.hex(),
+                "tx_hash": _normalize_tx_hash(tx_hash),
                 "status": "success" if receipt.status == 1 else "failed",
                 "block_number": int(receipt.blockNumber),
+                "transaction_submission_latency_ms": round((submit_end - submit_start) * 1000.0, 6),
+                "transaction_confirmation_latency_ms": round((confirm_end - confirm_start) * 1000.0, 6),
+                "transaction_total_latency_ms": round((confirm_end - total_start) * 1000.0, 6),
             }
         except Exception:
             log.exception("credit ledger transaction failed")

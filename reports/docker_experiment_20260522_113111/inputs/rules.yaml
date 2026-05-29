@@ -1,0 +1,4 @@
+low_battery_threshold: 25
+critical_grid_stress: 0.8
+v2g_min_battery: 55
+max_wait_minutes: 18

@@ -1,0 +1,376 @@
+{
+  "scenario": "weekday_nominal",
+  "description": "Typical intercity weekday with morning and evening grid peaks.",
+  "duration_seconds": 86400,
+  "seed": 42,
+  "input_policy": "real CAISO grid profile plus documented AEI-V2G deterministic digital twin",
+  "components": {
+    "ev_traffic": {
+      "spawned_evs": 621,
+      "charge_request_evs": 512,
+      "low_battery_evs": 71,
+      "v2g_capable_on_entry": 205,
+      "served_evs": 495,
+      "served_ratio_pct": 96.68
+    },
+    "rsu_awareness": {
+      "feature_frames": 8133,
+      "unique_sensed_events": 8133,
+      "unique_sensed_evs": 512,
+      "charge_request_evs_available": 512,
+      "sensing_coverage_pct": 100.0,
+      "features_per_minute": 5.648,
+      "rsu_range_km": 7.5
+    },
+    "lava_decision_engine": {
+      "route_decisions": 512,
+      "v2g_decisions": 1440,
+      "route_deferrals": 47,
+      "avg_route_confidence": 0.797,
+      "avg_v2g_confidence": 0.871,
+      "latency_ms_avg": 0.0165,
+      "latency_ms_p50": 0.016,
+      "latency_ms_p95": 0.024,
+      "latency_ms_max": 0.061,
+      "route_distribution": {
+        "station_a": 176,
+        "station_b": 216,
+        "station_c": 120
+      },
+      "engine_trace_counts": {
+        "route_optimizer": 512,
+        "route_rules": 512,
+        "route_constraints": 512,
+        "v2g_optimizer": 1440,
+        "v2g_rules": 1440,
+        "v2g_constraints": 1440
+      }
+    },
+    "station_operations": {
+      "by_station": {
+        "station_a": {
+          "arrivals": 176,
+          "completed": 173,
+          "avg_load_kw": 227.37,
+          "peak_load_kw": 330.0,
+          "avg_queue_depth": 0.424,
+          "peak_queue_depth": 6,
+          "energy_delivered_kwh": 5400.878,
+          "v2g_supplied_kwh": 555.4
+        },
+        "station_b": {
+          "arrivals": 211,
+          "completed": 210,
+          "avg_load_kw": 264.34,
+          "peak_load_kw": 385.0,
+          "avg_queue_depth": 0.51,
+          "peak_queue_depth": 6,
+          "energy_delivered_kwh": 6268.506,
+          "v2g_supplied_kwh": 693.6
+        },
+        "station_c": {
+          "arrivals": 119,
+          "completed": 112,
+          "avg_load_kw": 144.41,
+          "peak_load_kw": 275.0,
+          "avg_queue_depth": 0.593,
+          "peak_queue_depth": 7,
+          "energy_delivered_kwh": 3421.435,
+          "v2g_supplied_kwh": 381.467
+        }
+      },
+      "total_energy_delivered_kwh": 15090.819,
+      "total_v2g_supplied_kwh": 1630.467
+    },
+    "grid_response": {
+      "avg_grid_stress": 0.8024,
+      "peak_grid_stress": 1.0,
+      "stress_minutes_over_0_80": 496,
+      "baseline_stress_minutes_over_0_80": 1401,
+      "stress_event_reduction_pct": 64.6,
+      "demand_prediction_accuracy_pct": 97.29,
+      "avg_frequency_hz": 49.9771
+    },
+    "v2g_settlement": {
+      "invitations": 10459,
+      "acceptances": 8153,
+      "utilization_pct": 77.95,
+      "supplied_kwh": 1630.467,
+      "revenue": 1021.5,
+      "credits_awarded": 3260,
+      "credit_ledger_mode": "on_chain",
+      "credit_ledger_transactions": 1,
+      "credit_ledger_failures": 0,
+      "credit_ledger_statuses": {
+        "success": 1
+      },
+      "settlement_receipt": {
+        "transaction_hash": "baf85177a193e057b593de689af95dce61ffbf3a904d4682b4849bba6032dfbc",
+        "block_number": 1237540,
+        "status": "success",
+        "ledger_mode": "on_chain",
+        "transaction_submission_latency_ms": 11.815583,
+        "transaction_confirmation_latency_ms": 1692.040561,
+        "transaction_total_latency_ms": 1707.625865
+      }
+    },
+    "blockchain_validation": {
+      "chain_file": "weekday_nominal_chain.jsonl",
+      "records": 1952,
+      "valid_hash_chain": true,
+      "records_by_type": {
+        "lava_route": 512,
+        "v2g_dispatch": 1440
+      },
+      "last_block_hash": "aafe72e02c3e884693a01770849048ef12ba2dc867aaa9c44b8acd5c67d767aa",
+      "consensus_pct": 100.0
+    },
+    "edge_deployment": {
+      "scenario": "weekday_nominal",
+      "wan_outage": false,
+      "offline_decision_continuity_pct": 100.0,
+      "docker_image": "aei-v2g:pi",
+      "pi_roles": [
+        "pi1-lava-validator",
+        "pi2-station-validator",
+        "pi3-station-validator",
+        "pi5-rsu-observer",
+        "pi6-grid-observer"
+      ]
+    },
+    "blockchain_performance": {
+      "settlement_mode": "async_settlement",
+      "dispatch_latency_without_blockchain_ms": 0.024,
+      "dispatch_latency_with_async_blockchain_ms": 0.024,
+      "blockchain_overhead_pct": 0.0,
+      "note": "Async settlement is reported separately from LAVA decision latency and is outside the critical dispatch path."
+    }
+  },
+  "last_15_minutes": [
+    {
+      "minute": 1425,
+      "active_evs": 116,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.768349401719161,
+      "baseline_grid_stress": 0.925849401719161,
+      "actual_kw": 440.0,
+      "forecast_kw": 475.75,
+      "v2g_kw": 90.0,
+      "v2g_supplied_kwh": 1.0,
+      "v2g_credits_awarded": 2,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1426,
+      "active_evs": 117,
+      "routed_now": 1,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.776296901719161,
+      "baseline_grid_stress": 0.925849401719161,
+      "actual_kw": 440.0,
+      "forecast_kw": 440.0,
+      "v2g_kw": 83.642,
+      "v2g_supplied_kwh": 0.8,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1427,
+      "active_evs": 116,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.776296901719161,
+      "baseline_grid_stress": 0.925849401719161,
+      "actual_kw": 440.0,
+      "forecast_kw": 440.0,
+      "v2g_kw": 83.642,
+      "v2g_supplied_kwh": 0.8,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1428,
+      "active_evs": 116,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.776296901719161,
+      "baseline_grid_stress": 0.925849401719161,
+      "actual_kw": 440.0,
+      "forecast_kw": 440.0,
+      "v2g_kw": 83.642,
+      "v2g_supplied_kwh": 0.6000000000000001,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1429,
+      "active_evs": 116,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.776296901719161,
+      "baseline_grid_stress": 0.925849401719161,
+      "actual_kw": 440.0,
+      "forecast_kw": 440.0,
+      "v2g_kw": 83.642,
+      "v2g_supplied_kwh": 0.6000000000000001,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1430,
+      "active_evs": 115,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.763448702187281,
+      "baseline_grid_stress": 0.887452452187281,
+      "actual_kw": 385.0,
+      "forecast_kw": 420.75,
+      "v2g_kw": 64.553,
+      "v2g_supplied_kwh": 0.4,
+      "v2g_credits_awarded": 0,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1431,
+      "active_evs": 114,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.775479952187281,
+      "baseline_grid_stress": 0.923514952187281,
+      "actual_kw": 440.0,
+      "forecast_kw": 404.25,
+      "v2g_kw": 82.428,
+      "v2g_supplied_kwh": 0.4,
+      "v2g_credits_awarded": 0,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1432,
+      "active_evs": 112,
+      "routed_now": 1,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.790389952187281,
+      "baseline_grid_stress": 0.923514952187281,
+      "actual_kw": 495.0,
+      "forecast_kw": 459.25,
+      "v2g_kw": 98.0,
+      "v2g_supplied_kwh": 0.4,
+      "v2g_credits_awarded": 0,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1433,
+      "active_evs": 114,
+      "routed_now": 2,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.8010149521872809,
+      "baseline_grid_stress": 0.923514952187281,
+      "actual_kw": 605.0,
+      "forecast_kw": 533.5,
+      "v2g_kw": 98.0,
+      "v2g_supplied_kwh": 0.6000000000000001,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1434,
+      "active_evs": 115,
+      "routed_now": 1,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.791229952187281,
+      "baseline_grid_stress": 0.923514952187281,
+      "actual_kw": 605.0,
+      "forecast_kw": 605.0,
+      "v2g_kw": 105.828,
+      "v2g_supplied_kwh": 0.6000000000000001,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1435,
+      "active_evs": 114,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.7903254998364302,
+      "baseline_grid_stress": 0.9209317498364302,
+      "actual_kw": 605.0,
+      "forecast_kw": 605.0,
+      "v2g_kw": 104.485,
+      "v2g_supplied_kwh": 0.8,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1436,
+      "active_evs": 114,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.7903254998364302,
+      "baseline_grid_stress": 0.9209317498364302,
+      "actual_kw": 605.0,
+      "forecast_kw": 605.0,
+      "v2g_kw": 104.485,
+      "v2g_supplied_kwh": 0.8,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1437,
+      "active_evs": 114,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.7903254998364302,
+      "baseline_grid_stress": 0.9209317498364302,
+      "actual_kw": 550.0,
+      "forecast_kw": 585.75,
+      "v2g_kw": 104.485,
+      "v2g_supplied_kwh": 0.6000000000000001,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1438,
+      "active_evs": 114,
+      "routed_now": 0,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.7903254998364302,
+      "baseline_grid_stress": 0.9209317498364302,
+      "actual_kw": 550.0,
+      "forecast_kw": 550.0,
+      "v2g_kw": 104.485,
+      "v2g_supplied_kwh": 0.6000000000000001,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    },
+    {
+      "minute": 1439,
+      "active_evs": 115,
+      "routed_now": 1,
+      "lava_wait_min": 0.0,
+      "baseline_wait_min": 0.0,
+      "grid_stress": 0.7866067498364301,
+      "baseline_grid_stress": 0.9209317498364302,
+      "actual_kw": 495.0,
+      "forecast_kw": 530.75,
+      "v2g_kw": 98.96,
+      "v2g_supplied_kwh": 0.6000000000000001,
+      "v2g_credits_awarded": 1,
+      "credit_ledger_transactions": 0
+    }
+  ]
+}

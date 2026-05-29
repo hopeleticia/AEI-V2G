@@ -1,0 +1,14 @@
+{
+  "seed": 42,
+  "data_sources": [
+    {
+      "name": "CAISO demand trend load profile",
+      "config_key": "grid.load_profile_csv",
+      "path": "/app/data/grid_profiles/caiso_2024-05-01_2024-05-07.csv",
+      "sha256": "be0b402d41ac8136d7939ee5acf312f67e39463ace415284004abd53aa280f08",
+      "bytes": 139214,
+      "source_card": "data_sources/CAISO_DATASET_CARD.md"
+    }
+  ],
+  "test_fixture_policy": "Dummy schedulers and test-only fixtures are excluded from journal study runners."
+}

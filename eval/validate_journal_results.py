@@ -5,7 +5,10 @@ import csv
 import hashlib
 import json
 import os
+import sys
 from dataclasses import dataclass
+
+from eval.blockchain_performance import DEPLOYMENT_PROOF_WARNING, REQUIRED_PERFORMANCE_FIELDS
 
 
 NUMERIC_TOLERANCE = 0.01
@@ -68,9 +71,11 @@ def validate_results(report_dir: str) -> dict:
     result = {
         "report_dir": report_dir,
         "scenarios_checked": len(scenario_results),
+        "blockchain_performance": validate_blockchain_performance(report_dir, summary),
         "passed": all(item.passed for item in scenario_results),
         "scenario_results": [item.__dict__ | {"passed": item.passed} for item in scenario_results],
     }
+    result["passed"] = result["passed"] and result["blockchain_performance"]["passed"]
     return result
 
 
@@ -126,6 +131,12 @@ def validate_scenario(summary_row: dict, csv_row: dict, detail: dict, chain: dic
         issues.append("Station V2G sum does not match total")
 
     blockchain_settlement_present = check_blockchain_settlement(components, issues)
+    v2g_settlement = components["v2g_settlement"]
+    if (
+        v2g_settlement.get("credit_ledger_mode") == "on_chain"
+        and int(v2g_settlement.get("credit_ledger_transactions") or 0) <= 0
+    ):
+        issues.append("credit_ledger_mode is on_chain but credit_ledger_transactions is 0")
 
     return ValidationResult(
         scenario=scenario,
@@ -168,6 +179,79 @@ def check_blockchain_settlement(components: dict, issues: list[str]) -> bool:
         issues.append(f"blockchain_settlement.status must be 'success' or 'failed', got: {block['status']}")
         return False
     return True
+
+
+def validate_blockchain_performance(report_dir: str, summary: dict) -> dict:
+    issues: list[str] = []
+    json_path = os.path.join(report_dir, "blockchain_performance.json")
+    csv_path = os.path.join(report_dir, "blockchain_performance.csv")
+    latency_fig = os.path.join(report_dir, "figures", "fig_blockchain_latency.png")
+    throughput_fig = os.path.join(report_dir, "figures", "fig_blockchain_throughput.png")
+    for path in (json_path, csv_path, latency_fig, throughput_fig):
+        if not os.path.exists(path):
+            issues.append(f"missing blockchain performance artifact: {os.path.relpath(path, report_dir)}")
+
+    payload = {}
+    rows: list[dict] = []
+    if os.path.exists(json_path):
+        with open(json_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        rows = payload.get("scenarios", [])
+        aggregate = payload.get("aggregate", {})
+        missing = [field for field in REQUIRED_PERFORMANCE_FIELDS if field not in aggregate]
+        if missing:
+            issues.append(f"blockchain_performance.aggregate missing required fields: {missing}")
+        warnings = payload.get("warnings", [])
+        if any(row.get("proof_type") == "deployment_transaction" for row in rows) and DEPLOYMENT_PROOF_WARNING not in warnings:
+            issues.append("deployment-proof fallback warning is missing from blockchain_performance.json")
+
+    if os.path.exists(csv_path):
+        csv_rows = read_csv_rows(csv_path)
+        if len(csv_rows) != len(summary.get("scenarios", [])):
+            issues.append("blockchain_performance.csv row count does not match scenario count")
+        for row in csv_rows:
+            missing = [field for field in REQUIRED_PERFORMANCE_FIELDS if field not in row]
+            if missing:
+                issues.append(f"blockchain_performance.csv missing required fields: {missing}")
+                break
+
+    on_chain_enabled = any(str(row.get("credit_ledger_mode")) == "on_chain" for row in summary.get("scenarios", []))
+    successful = int((payload.get("aggregate") or {}).get("successful_transactions") or 0)
+    if on_chain_enabled and successful <= 0:
+        issues.append("successful_transactions must be > 0 when on-chain mode is enabled")
+
+    aggregate = payload.get("aggregate") or {}
+    expected_rate = success_rate_pct(
+        int(aggregate.get("successful_transactions") or 0),
+        int(aggregate.get("failed_transactions") or 0),
+        int(aggregate.get("pending_transactions") or 0),
+    )
+    actual_rate = float(aggregate.get("settlement_success_rate_pct") or 0.0)
+    if not close(actual_rate, expected_rate, 0.01):
+        issues.append(f"settlement_success_rate_pct is incorrect: {actual_rate} != {expected_rate}")
+
+    if rows and any("dispatch_latency_without_blockchain_ms" not in row or "dispatch_latency_with_async_blockchain_ms" not in row for row in rows):
+        issues.append("async blockchain overhead is not reported separately from LAVA decision latency")
+
+    return {
+        "json_exists": os.path.exists(json_path),
+        "csv_exists": os.path.exists(csv_path),
+        "latency_figure_exists": os.path.exists(latency_fig),
+        "throughput_figure_exists": os.path.exists(throughput_fig),
+        "successful_transactions": successful,
+        "issues": issues,
+        "passed": not issues,
+    }
+
+
+def read_csv_rows(path: str) -> list[dict]:
+    with open(path, "r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def success_rate_pct(successful: int, failed: int, pending: int) -> float:
+    total = successful + failed + pending
+    return round(successful / total * 100.0, 2) if total else 0.0
 
 
 def validate_chain(path: str) -> dict:
@@ -248,6 +332,7 @@ def write_markdown(validation: dict, output_path: str) -> None:
         "- Route decision counts were checked against `lava_route` chain records.",
         "- V2G decision counts were checked against `v2g_dispatch` chain records.",
         "- Per-station delivered energy and V2G supply were summed and compared with station totals.",
+        "- Blockchain latency, throughput, success-rate, and async dispatch-overhead artifacts were checked.",
         "",
         "## Scenario Validation Table",
         "",
@@ -295,6 +380,7 @@ def write_markdown(validation: dict, output_path: str) -> None:
         ]
     )
     failed_issues = [issue for row in validation["scenario_results"] for issue in row["issues"]]
+    failed_issues.extend(validation.get("blockchain_performance", {}).get("issues", []))
     if failed_issues:
         lines.extend(["", "## Issues", ""])
         lines.extend(f"- {issue}" for issue in failed_issues)
@@ -316,6 +402,8 @@ def main() -> None:
         json.dump(validation, handle, indent=2)
     write_markdown(validation, args.output)
     print(json.dumps({"passed": validation["passed"], "scenarios_checked": validation["scenarios_checked"], "output": args.output}, indent=2))
+    if not validation["passed"]:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,39 @@
+seed: 42
+tick_seconds: 60
+corridor:
+  length_km: 50
+  rsu_range_km: 7.5
+  ev_arrivals_per_hour: 28
+  baseline_station_policy: nearest
+stations:
+  - id: station_a
+    km: 8
+    max_kw: 360
+    slots: 6
+    base_price: 0.31
+  - id: station_b
+    km: 24
+    max_kw: 420
+    slots: 7
+    base_price: 0.29
+  - id: station_c
+    km: 41
+    max_kw: 300
+    slots: 5
+    base_price: 0.34
+rsus:
+  - id: rsu_1
+    km: 4
+  - id: rsu_2
+    km: 16
+  - id: rsu_3
+    km: 31
+  - id: rsu_4
+    km: 45
+grid:
+  base_stress: 0.45
+  peak_hours: [7, 8, 17, 18, 19]
+  stress_event_hour: 18
+  stress_event_boost: 0.22
+  v2g_base_price: 0.42
+  load_profile_csv: data/grid_profiles/caiso_2024-05-01_2024-05-07.csv

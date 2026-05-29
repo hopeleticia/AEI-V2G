@@ -7,6 +7,8 @@ import os
 import warnings
 from pathlib import Path
 
+from eval.blockchain_performance import write_blockchain_figures
+
 try:
     import matplotlib.pyplot as plt
 except ImportError as exc:
@@ -56,6 +58,10 @@ def plot_all(report_dir: str, output_dir: str) -> list[str]:
         plot_v2g_participation_rate(scenario_rows, output_dir),
         plot_v2g_discharge_credits(scenario_rows, detail, output_dir),
     ]
+    performance_path = os.path.join(report_dir, "blockchain_performance.json")
+    if os.path.exists(performance_path):
+        performance = load_json(performance_path)
+        figure_paths.extend(write_blockchain_figures(Path(report_dir), performance.get("scenarios", [])))
     write_index(report_dir, figure_paths)
     return figure_paths
 
@@ -337,6 +343,8 @@ def write_index(report_dir: str, paths: list[str]) -> None:
         "Charging completion rate with served and spawned EV counts.",
         "V2G participation rate with supplied V2G energy.",
         "Accepted V2G discharge events compared with credit points awarded.",
+        "PureChain settlement latency shown separately from edge dispatch latency.",
+        "PureChain settlement throughput and transaction success rate.",
     ]
     for index, (path, caption) in enumerate(zip(rel_paths, captions), start=1):
         lines.append(f"## Figure {index}")

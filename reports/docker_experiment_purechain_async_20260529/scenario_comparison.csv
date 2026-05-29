@@ -1,0 +1,6 @@
+scenario,duration_seconds,spawned_evs,served_evs,served_ratio_pct,rsu_sensing_coverage_pct,route_decisions,latency_ms_p95,latency_ms_max,grid_stress_reduction_pct,demand_prediction_accuracy_pct,v2g_utilization_pct,v2g_invitations,v2g_acceptances,v2g_supplied_kwh,v2g_revenue,v2g_credits_awarded,credit_ledger_mode,credit_ledger_transactions,credit_ledger_failures,chain_records,chain_valid,offline_continuity_pct
+weekday_nominal,86400,621,495,96.68,100.0,512,0.024,0.061,64.6,97.29,77.95,10459,8153,1630.467,1021.5,3260,on_chain,1,0,1952,True,100.0
+evening_peak_v2g,86400,775,628,97.21,100.0,646,0.025,0.202,29.95,98.19,77.61,13252,10285,2055.267,1310.18,4110,on_chain,1,0,2086,True,100.0
+event_surge,86400,1278,734,68.66,100.0,1069,0.024,0.089,62.28,99.79,77.69,15524,12061,2411.4,1527.14,4822,on_chain,1,0,2509,True,100.0
+rural_degraded_isac,86400,688,548,96.48,100.0,568,0.024,0.351,60.21,97.87,77.77,11602,9023,1804.467,1138.28,3608,on_chain,1,0,2008,True,100.0
+wan_outage_edge_only,86400,724,575,96.48,100.0,596,0.024,0.338,41.12,97.91,77.94,12269,9563,1912.6,1214.73,3825,on_chain,1,0,2036,True,100.0

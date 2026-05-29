@@ -1,0 +1,72 @@
+{
+  "report_dir": "reports/docker_experiment_20260522_113111",
+  "scenarios_checked": 5,
+  "passed": true,
+  "scenario_results": [
+    {
+      "scenario": "weekday_nominal",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": true,
+      "issues": [],
+      "passed": true
+    },
+    {
+      "scenario": "evening_peak_v2g",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": true,
+      "issues": [],
+      "passed": true
+    },
+    {
+      "scenario": "event_surge",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": true,
+      "issues": [],
+      "passed": true
+    },
+    {
+      "scenario": "rural_degraded_isac",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": true,
+      "issues": [],
+      "passed": true
+    },
+    {
+      "scenario": "wan_outage_edge_only",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": true,
+      "issues": [],
+      "passed": true
+    }
+  ]
+}

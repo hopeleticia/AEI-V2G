@@ -1,0 +1,6 @@
+scenario,settlement_mode,proof_type,warning,transaction_submission_latency_ms,transaction_confirmation_latency_ms,transaction_total_latency_ms,blockchain_throughput_tps,successful_transactions,failed_transactions,pending_transactions,settlement_success_rate_pct,dispatch_latency_without_blockchain_ms,dispatch_latency_with_async_blockchain_ms,blockchain_overhead_pct,tx_hash,block_number,receipt_status,contract_address,chain_id
+weekday_nominal,async_settlement,missing,,11.815583,1692.040561,1707.625865,0.585608,1,0,0,100.0,0.024,0.024,0.0,,,,,
+evening_peak_v2g,async_settlement,missing,,13.495358,127.599765,144.663732,6.912583,1,0,0,100.0,0.025,0.025,0.0,,,,,
+event_surge,async_settlement,missing,,14.663644,1609.357727,1627.584515,0.614407,1,0,0,100.0,0.024,0.024,0.0,,,,,
+rural_degraded_isac,async_settlement,missing,,11.373308,1905.734192,1920.619757,0.520665,1,0,0,100.0,0.024,0.024,0.0,,,,,
+wan_outage_edge_only,async_settlement,missing,,12.998378,1711.217114,1727.606133,0.578836,1,0,0,100.0,0.024,0.024,0.0,,,,,
