@@ -1,0 +1,16 @@
+scenario,station_id,arrivals,completed,avg_load_kw,peak_load_kw,avg_queue_depth,peak_queue_depth,energy_delivered_kwh,v2g_supplied_kwh
+weekday_nominal,station_a,176,173,227.37,330.0,0.424,6,5400.878,555.4
+weekday_nominal,station_b,211,210,264.34,385.0,0.51,6,6268.506,693.6
+weekday_nominal,station_c,119,112,144.41,275.0,0.593,7,3421.435,381.467
+evening_peak_v2g,station_a,221,216,269.73,330.0,1.281,9,6394.098,672.4
+evening_peak_v2g,station_b,254,247,311.06,385.0,1.671,13,7372.922,848.0
+evening_peak_v2g,station_c,169,165,223.93,275.0,2.866,13,5312.066,534.867
+event_surge,station_a,350,242,324.0,330.0,52.18,106,7684.826,787.6
+event_surge,station_b,395,292,376.02,385.0,52.154,101,8914.596,981.0
+event_surge,station_c,315,200,261.75,275.0,53.728,111,6203.362,642.8
+rural_degraded_isac,station_a,198,193,254.91,330.0,0.719,9,6049.055,608.2
+rural_degraded_isac,station_b,232,221,278.51,385.0,0.892,9,6597.583,728.0
+rural_degraded_isac,station_c,134,134,182.0,275.0,1.437,10,4320.857,468.267
+wan_outage_edge_only,station_a,207,199,262.43,330.0,0.765,7,6227.169,677.4
+wan_outage_edge_only,station_b,243,233,298.95,385.0,1.31,11,7089.233,794.8
+wan_outage_edge_only,station_c,144,143,183.94,275.0,1.024,9,4362.302,440.4

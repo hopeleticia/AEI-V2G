@@ -19,6 +19,7 @@ import yaml
 from integration.ev_router import nearest_station
 from integration.v2g_dispatcher import apply_v2g
 from lava.engine import LAVAEngine
+from eval.blockchain_performance import write_blockchain_performance
 from logging_layer.decision_log import DecisionLog
 from sim.corridor import Corridor
 from sim.station_model import receive_ev, update_station
@@ -64,19 +65,32 @@ SCENARIOS = {
 }
 
 
-def run_study(config_path: str, duration: int, output_dir: str) -> dict:
+SETTLEMENT_MODES = {"async_settlement", "sync_settlement", "off"}
+
+
+def run_study(config_path: str, duration: int, output_dir: str, settlement_mode: str | None = None) -> dict:
     os.makedirs(output_dir, exist_ok=True)
+    settlement_mode = normalize_settlement_mode(settlement_mode)
     base_config = load_yaml_config(config_path)
     config_path_obj = Path(config_path)
     required_sources = validate_required_data_sources(base_config, config_path_obj)
     write_input_artifacts(config_path_obj, base_config, output_dir, required_sources)
     scenario_reports = []
+    detail_reports = {}
     component_rows = []
     station_rows = []
 
     for scenario_name, overrides in SCENARIOS.items():
         config = scenario_config(base_config, overrides)
-        report, trace_rows = run_scenario(scenario_name, overrides["description"], config, duration, output_dir)
+        report, trace_rows = run_scenario(
+            scenario_name,
+            overrides["description"],
+            config,
+            duration,
+            output_dir,
+            settlement_mode,
+        )
+        detail_reports[scenario_name] = report
         scenario_reports.append(flatten_summary(report))
         component_rows.extend(component_table_rows(scenario_name, report["components"]))
         station_rows.extend(station_table_rows(scenario_name, report["components"]["station_operations"]["by_station"]))
@@ -112,13 +126,21 @@ def run_study(config_path: str, duration: int, output_dir: str) -> dict:
         },
         "scenarios": scenario_reports,
     }
+    write_blockchain_performance(output_dir, summary, detail_reports)
     with open(os.path.join(output_dir, "journal_summary.json"), "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=2)
     write_provenance(config_path_obj, base_config, duration, output_dir, required_sources, summary)
     return summary
 
 
-def run_scenario(scenario_name: str, description: str, config: dict, duration: int, output_dir: str) -> tuple[dict, list[dict]]:
+def run_scenario(
+    scenario_name: str,
+    description: str,
+    config: dict,
+    duration: int,
+    output_dir: str,
+    settlement_mode: str = "async_settlement",
+) -> tuple[dict, list[dict]]:
     corridor = Corridor(config)
     lava = LAVAEngine.from_yaml("config/lava_weights.yaml", "config/rules.yaml", "config/constraints.yaml")
     chain_path = os.path.join(output_dir, f"{scenario_name}_chain.jsonl")
@@ -147,8 +169,8 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
         "minute_rows": [],
         "unique_sensed_ev_ids": set(),
         "charge_request_ev_ids": set(),
+        "blockchain_settlement_mode": settlement_mode,
     }
-
     for minute in range(duration // 60):
         spawned = corridor.generator.spawn(tick_minutes, corridor.length_km)
         active_evs.extend(spawned)
@@ -217,7 +239,12 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
         for trace in v2g_decision["trace"]:
             telemetry["engine_votes"][f"v2g_{trace['engine']}"] += 1
 
-        v2g = apply_v2g(corridor.stations, v2g_decision["value_kw"], tick_minutes, grid_state["v2g_buy_price"])
+        v2g = apply_v2g(
+            corridor.stations,
+            v2g_decision["value_kw"],
+            tick_minutes,
+            grid_state["v2g_buy_price"],
+        )
         relieved_grid = corridor.grid.state(minute, total_load, v2g_decision["value_kw"])
         forecast_kw = previous_actual_kw * 0.65 + total_load * 0.35
         previous_actual_kw = total_load
@@ -269,7 +296,8 @@ def run_scenario(scenario_name: str, description: str, config: dict, duration: i
             }
         )
 
-    settle_scenario_credit_ledger(scenario_name, telemetry)
+    if settlement_mode in {"async_settlement", "sync_settlement"}:
+        settle_scenario_credit_ledger(scenario_name, telemetry)
     deployment_proof = load_deployment_proof()
     components = component_metrics(corridor, telemetry, completed, chain_path, scenario_name, bool(config.get("wan_outage")), deployment_proof)
     return {
@@ -298,7 +326,7 @@ def load_deployment_proof() -> dict | None:
     return {
         "contract_address": data.get("contract_address"),
         "chain_id": data.get("chain_id"),
-        "deployment_tx_hash": data.get("deployment_tx_hash"),
+        "deployment_tx_hash": normalize_tx_hash(data.get("deployment_tx_hash")),
         "block_number": data.get("block_number"),
         "deployment_status": data.get("deployment_status", "success"),
         "rpc_url": data.get("rpc_url"),
@@ -307,17 +335,37 @@ def load_deployment_proof() -> dict | None:
     }
 
 
+def normalize_settlement_mode(value: str | None) -> str:
+    mode = (value or os.environ.get("AEI_BLOCKCHAIN_SETTLEMENT_MODE") or "async_settlement").strip()
+    if mode not in SETTLEMENT_MODES:
+        raise ValueError(f"unsupported blockchain settlement mode: {mode!r}; expected one of {sorted(SETTLEMENT_MODES)}")
+    return mode
+
+
+def build_credit_client():
+    try:
+        from logging_layer.chain_client import build_from_env
+        return build_from_env()
+    except Exception:
+        return None
+
+
+def normalize_tx_hash(value: object) -> str | None:
+    if value in (None, ""):
+        return None
+    tx_hash = value.hex() if hasattr(value, "hex") else str(value)
+    if not tx_hash.startswith("0x"):
+        tx_hash = "0x" + tx_hash
+    return tx_hash
+
+
 def settle_scenario_credit_ledger(scenario_name: str, telemetry: dict) -> None:
     supplied_kwh = float(telemetry["v2g"]["supplied_kwh"])
     credits = int(supplied_kwh / 0.5)
     telemetry["v2g"]["credits_awarded"] = credits
     if credits <= 0:
         return
-    try:
-        from logging_layer.chain_client import build_from_env
-        ledger = build_from_env()
-    except Exception:
-        ledger = None
+    ledger = build_credit_client()
     if ledger is None:
         return
     result = ledger.award_credits(f"{scenario_name}_v2g_total", supplied_kwh, "scenario_total")
@@ -329,10 +377,13 @@ def settle_scenario_credit_ledger(scenario_name: str, telemetry: dict) -> None:
     else:
         telemetry["v2g"]["credit_ledger_failures"] += 1
     telemetry["v2g"]["settlement_receipt"] = {
-        "transaction_hash": result.get("tx_hash"),
+        "transaction_hash": normalize_tx_hash(result.get("tx_hash")),
         "block_number": result.get("block_number"),
         "status": status,
         "ledger_mode": result.get("ledger_mode"),
+        "transaction_submission_latency_ms": result.get("transaction_submission_latency_ms"),
+        "transaction_confirmation_latency_ms": result.get("transaction_confirmation_latency_ms"),
+        "transaction_total_latency_ms": result.get("transaction_total_latency_ms"),
     }
 
 
@@ -350,16 +401,19 @@ def build_blockchain_settlement(telemetry: dict, deployment_proof: dict | None) 
         return {
             "contract_address": deployment_proof["contract_address"],
             "chain_id": deployment_proof["chain_id"],
-            "transaction_hash": receipt["transaction_hash"],
+            "transaction_hash": normalize_tx_hash(receipt["transaction_hash"]),
             "block_number": int(receipt["block_number"]),
             "status": receipt.get("status", "success"),
             "proof_type": "scenario_settlement",
             "rpc_url": deployment_proof.get("rpc_url"),
+            "transaction_submission_latency_ms": receipt.get("transaction_submission_latency_ms"),
+            "transaction_confirmation_latency_ms": receipt.get("transaction_confirmation_latency_ms"),
+            "transaction_total_latency_ms": receipt.get("transaction_total_latency_ms"),
         }
     return {
         "contract_address": deployment_proof["contract_address"],
         "chain_id": deployment_proof["chain_id"],
-        "transaction_hash": deployment_proof["deployment_tx_hash"],
+        "transaction_hash": normalize_tx_hash(deployment_proof["deployment_tx_hash"]),
         "block_number": int(deployment_proof["block_number"]),
         "status": deployment_proof.get("deployment_status", "success"),
         "proof_type": "deployment_transaction",
@@ -453,6 +507,7 @@ def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain
             "credit_ledger_transactions": telemetry["v2g"]["credit_ledger_transactions"],
             "credit_ledger_failures": telemetry["v2g"]["credit_ledger_failures"],
             "credit_ledger_statuses": dict(telemetry["v2g_ledger_statuses"]),
+            "settlement_receipt": telemetry["v2g"].get("settlement_receipt"),
         },
         "blockchain_validation": {
             "chain_file": os.path.basename(chain_path),
@@ -472,6 +527,13 @@ def component_metrics(corridor: Corridor, telemetry: dict, completed: int, chain
     }
     if blockchain_settlement is not None:
         result["blockchain_settlement"] = blockchain_settlement
+    result["blockchain_performance"] = {
+        "settlement_mode": telemetry.get("blockchain_settlement_mode", "async_settlement"),
+        "dispatch_latency_without_blockchain_ms": result["lava_decision_engine"]["latency_ms_p95"],
+        "dispatch_latency_with_async_blockchain_ms": result["lava_decision_engine"]["latency_ms_p95"],
+        "blockchain_overhead_pct": 0.0,
+        "note": "Async settlement is reported separately from LAVA decision latency and is outside the critical dispatch path.",
+    }
     return result
 
 
@@ -710,8 +772,14 @@ def main() -> None:
     parser.add_argument("--config", default="config/corridor_config.yaml")
     parser.add_argument("--duration", type=int, default=86400)
     parser.add_argument("--output-dir", default="reports/journal_study")
+    parser.add_argument(
+        "--blockchain-settlement-mode",
+        choices=sorted(SETTLEMENT_MODES),
+        default=None,
+        help="async_settlement is the default; sync_settlement is a labeled comparison baseline only",
+    )
     args = parser.parse_args()
-    summary = run_study(args.config, args.duration, args.output_dir)
+    summary = run_study(args.config, args.duration, args.output_dir, args.blockchain_settlement_mode)
     print(json.dumps(summary["scenarios"], indent=2))
 
 

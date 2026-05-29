@@ -1,0 +1,91 @@
+{
+  "report_dir": "reports/docker_experiment_purechain_async_20260529",
+  "scenarios_checked": 5,
+  "blockchain_performance": {
+    "json_exists": true,
+    "csv_exists": true,
+    "latency_figure_exists": true,
+    "throughput_figure_exists": true,
+    "successful_transactions": 5,
+    "issues": [],
+    "passed": true
+  },
+  "passed": false,
+  "scenario_results": [
+    {
+      "scenario": "weekday_nominal",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": false,
+      "issues": [
+        "blockchain_settlement block is missing from detail.components"
+      ],
+      "passed": false
+    },
+    {
+      "scenario": "evening_peak_v2g",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": false,
+      "issues": [
+        "blockchain_settlement block is missing from detail.components"
+      ],
+      "passed": false
+    },
+    {
+      "scenario": "event_surge",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": false,
+      "issues": [
+        "blockchain_settlement block is missing from detail.components"
+      ],
+      "passed": false
+    },
+    {
+      "scenario": "rural_degraded_isac",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": false,
+      "issues": [
+        "blockchain_settlement block is missing from detail.components"
+      ],
+      "passed": false
+    },
+    {
+      "scenario": "wan_outage_edge_only",
+      "csv_matches_detail": true,
+      "chain_links_valid": true,
+      "chain_hashes_valid": true,
+      "route_records_match": true,
+      "v2g_records_match": true,
+      "station_energy_matches_total": true,
+      "station_v2g_matches_total": true,
+      "blockchain_settlement_present": false,
+      "issues": [
+        "blockchain_settlement block is missing from detail.components"
+      ],
+      "passed": false
+    }
+  ]
+}
